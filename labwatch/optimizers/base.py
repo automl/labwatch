@@ -18,7 +18,7 @@ class Optimizer(object):
         """
         return None
 
-    def update(self):
+    def update(self, config, performance):
         raise NotImplementedError("update called on base class Optimizer. Use a derived class instead!")
 
     def needs_updates(self):

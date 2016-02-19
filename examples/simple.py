@@ -9,9 +9,9 @@ from labwatch.hyperparameters import UniformFloat
 
 
 c = pymongo.MongoClient()
-db = c.assistant_demo
+db = c.labwatch_demo
 ex = Experiment('labwatch_simple_test')
-a = LabAssistant(None, ex)
+a = LabAssistant(db, ex)
 
 @ex.config
 def cfg():
@@ -21,7 +21,7 @@ def cfg():
 
 @a.searchspace
 def search_space():
-    C = UniformFloat(lower=0, upper=10) # , log_scale=True)
+    C = UniformFloat(lower=0, upper=10 , log_scale=True)
     gamma = UniformFloat(lower=0, upper=10)
   
 @ex.automain

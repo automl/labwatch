@@ -167,6 +167,9 @@ class UniformNumber(Parameter):
         if not (self["lower"] <= self["default"] <= self["upper"]):
             err = "Default for {} is not between min and max".format(self["uid"])
             raise ParamValueExcept(err)
+        if self["upper"] <= self["lower"]:
+            err = "Upper bound {} is larger than lower bound {} for {} ".format(self["upper"], self["lower"], self["uid"])
+            raise ParamValueExcept(err)
 
     def default(self):
         return self["default"]
@@ -176,7 +179,9 @@ class UniformNumber(Parameter):
         mmin = mtype(self["lower"])
         mmax = mtype(self["upper"])
         if self["log_scale"]:
-            mmin = mtype(np.log(mmin))
+            if mmin < 0. or mmax < 0.:
+                raise ParamValueExcept("log_scale only allowed for positive ranges")
+            mmin = mtype(np.log(np.maximum(mmin, 1e-7)))
             mmax = mtype(np.log(mmax))
         if mtype in (int, long):
             if self["log_scale"]:
@@ -240,6 +245,18 @@ class UniformInt(UniformNumber):
                                            default=default,
                                            log_scale=log_scale,
                                            uid=uid)
+
+    @classmethod
+    def decode(cls, storage):
+        uid = storage["uid"]
+        type = str_to_types[storage["type"]]
+        lower = type(storage["lower"])
+        upper = type(storage["upper"])
+        default = type(storage["default"])
+        log_scale = bool(storage["log_scale"])
+        return cls(lower, upper, 
+                   default, log_scale, uid)
+
 
 class Gaussian(Parameter):
     """ A Gaussian just has a different distribution 

@@ -18,6 +18,8 @@ from sacred.commandline_options import QueueOption
 from sacred.arg_parser import parse_args
 
 from labwatch.utils.types import InconsistentSpace
+from labwatch.utils.version_checks import check_dependencies, \
+    check_sources, check_names
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.searchspace import SearchSpace, build_searchspace
 from labwatch.optimizers import RandomSearch
@@ -47,6 +49,7 @@ class SearchSpaceManipulator(SONManipulator):
         return son
 
 SON_MANIPULATORS.append(SearchSpaceManipulator())
+
 
 class LabAssistant(object):
 
@@ -102,6 +105,27 @@ class LabAssistant(object):
         self.db_searchspace = self.db[self.prefix].search_space
         for manipulator in SON_MANIPULATORS:
             self.db.add_son_manipulator(manipulator)
+
+    def _parse_db_from_args(self, args, logger):
+        db_flag = "--" + MongoDbOption.get_flag()[1]
+        if args.has_key(db_flag) and args[db_flag] is not None:
+            logger.info("Using db provided via {} flag".format(db_flag))
+            db_name = args[db_flag]
+            c = pymongo.MongoClient()
+            self.db = c[db_name]
+            # init database
+            self._init_db()
+            # verify searchspace against database
+            try:
+                self._verify_and_init_searchspace(self.search_space)
+                return True
+            except:
+                logger.warn("Tried to use db provided via args but caught an exception")
+                self.db = None
+                self.runs = None
+                self.db_searchspace = None
+                self.optimizer = None
+        return False
         
     def _verify_and_init_searchspace(self, space_from_ex, new_space=False):
         # try to figure out if a searchspace is defined in the database
@@ -159,25 +183,9 @@ class LabAssistant(object):
         # try to fetch one from the args
         logger = logger.getChild('LabAssistant')
         if self.db is None:
-            db_flag = "--" + MongoDbOption.get_flag()[1]
-            if args.has_key(db_flag) and args[db_flag] is not None:
-                logger.info("Using db provided via {} flag".format(db_flag))
-                db_name = args[db_flag]
-                c = pymongo.MongoClient()
-                self.db = c[db_name]
-                # init database
-                self._init_db()
-                # verify searchspace against database
-                try:
-                    self._verify_and_init_searchspace(self.search_space)
-                except:
-                    logger.warn("Tried to use db provided via flag but caught an exception")
-                    self.db = None
-                    self.runs = None
-                    self.db_searchspace = None
-                    self.optimizer = None
-            else:
-                logger.warn("have no database! Using random search!")        
+            reinit_success = self._parse_db_from_args(args, logger)
+            if not reinit_success:
+                logger.warn("have no database! Using random search!")
         # check for assisted flag in args
         flag_string = "--" + AssistedOption.get_flag()[1]
         if args.has_key(flag_string):
@@ -215,7 +223,7 @@ class LabAssistant(object):
                              "but you called inject_observer")
         if self.observer_mapping.has_key(ex):
             # we already have an observer for this experiment
-            return        
+            return
         # otherwise create a new one
         fs = gridfs.GridFS(self.db, collection=self.prefix)
         observer = MongoObserver(self.runs, fs)
@@ -231,25 +239,26 @@ class LabAssistant(object):
                                  "into different databases!")
             collection_names.add(name)
 
-    def _dequeue_run(self, remaining_time):
+    def _dequeue_run(self, remaining_time, sleep_time):
         criterion = {'status':'QUEUED'}
         ex_info = self.ex.get_experiment_info()
         run = None
+        start_time = time.time()
         while remaining_time > 0.:
             run = self.runs.find_one(criterion)
             if run is None:
                 self.logger.warn('Could not find run from queue ' \
-                                 ' waiting for max another {} s'.format(remaining_time))
+                                 'waiting for max another {} s'.format(remaining_time))
                 time.sleep(sleep_time)
                 expired_time = (time.time() - start_time)
                 remaining_time = self.block_time - expired_time
             else:
                 # verify the run
-                _check_names(ex_info['name'], run['experiment']['name'])
-                _check_sources(ex_info['sources'], run['experiment']['sources'])
-                _check_dependencies(ex_info['dependencies'],
-                                    run['experiment']['dependencies'],
-                                    version_policy)
+                check_names(ex_info['name'], run['experiment']['name'])
+                check_sources(ex_info['sources'], run['experiment']['sources'])
+                check_dependencies(ex_info['dependencies'],
+                                   run['experiment']['dependencies'],
+                                   self.version_policy)
                 
                 # set status to INITIALIZING to prevent others from
                 # running the same Run.
@@ -258,11 +267,22 @@ class LabAssistant(object):
                 replace_summary = self.runs.replace_one(
                     {'_id': run['_id'], 'status': old_status},
                     replacement=run)
-                if replace_summary.modified_count == 1:
+                if replace_summary.modified_count == 1 or \
+                   replace_summary.raw_result['updatedExisting']:
+                    # the second part above is necessary in case we are
+                    # working with an older mongodb server (version < 2.6)
+                    # which will not return the modified_count flag
                     break  # we've successfully acquired a run
         return run
         
     ###################### exported functions ######################
+
+    def set_database(self, database):
+        self.db = database
+        self._init_db()
+        # we need to verify the searchspace again
+        self._verify_and_init_searchspace(self.search_space)
+    
     def update_optimizer(self):
         if self.db is None:
             self.logger.warn("cannot update optimizer, reason: no database!")
@@ -296,6 +316,8 @@ class LabAssistant(object):
         if (not self.space_initialized) or (self.search_space is None):
             raise ValueError("LabAssistant sample_suggestion called " \
                              "without a defined search space")
+        if self.optimizer.needs_updates():
+            self.update_optimizer()
         config = self.optimizer.suggest_configuration()
         # clean underscored variables
         if clean:
@@ -304,49 +326,46 @@ class LabAssistant(object):
         return config
                 
     def run_suggestion(self, command='main'):
-        if self.optimizer.needs_updates():
-            self.update_optimizer()
         # Next get config from optimizer
         config = self.get_suggestion(clean=True)
         if config is None:
             raise RuntimeError("Optimizer did not return a config!")
-        self._inject_observer(ex)
+        self._inject_observer(self.ex)
         res = self.ex.run_command(command, config_updates=config)
         return res
 
     def run_random(self, command='main'):
         config = self._clean_config(self.optimizer.get_random_config())
-        self._inject_observer(ex)
+        self._inject_observer(self.ex)
         res = self.ex.run_command(command, config_updates=config)
         return res
 
     def run_default(self, command='main'):
         config = self._clean_config(self.optimizer.get_default_config())
-        self._inject_observer(ex)
+        self._inject_observer(self.ex)
         res = self.ex.run_command(command, config_updates=config)
         return res
 
     def run_config(self, config, command='main'):
         config = self._clean_config(config)
-        self._inject_observer(ex)
+        self._inject_observer(self.ex)
         res = self.ex.run_command(command, config_updates=config)
         return res
 
     def enqueue_suggestion(self, command='main'):
-        if self.optimizer.needs_updates():
-            self.update_optimizer()
         # Next get config from optimizer
         config = self.get_suggestion(clean=True)
         if config is None:
             raise RuntimeError("Optimizer did not return a config!")
+        self._inject_observer(self.ex)
         res = self.ex.run_command(command,
                                   config_updates=config,
                                   args={ "--queue" : QueueOption()})                                  
         
     
-    def run_from_queue(self, wait_time_in_s=10 * 60, sleep_time=30):
+    def run_from_queue(self, wait_time_in_s=10 * 60, sleep_time=5):
         criterion = {'status':'QUEUED'}
-        self._dequeue_run(wait_time_in_s)
+        run = self._dequeue_run(wait_time_in_s, sleep_time)
         if run is None:
             self.logger.warn("No run found in queue for {} s -> terminating".format(wait_time_in_s))
             return None
@@ -356,7 +375,7 @@ class LabAssistant(object):
             if self.observer_mapping.has_key(self.ex):
                 had_matching_observer = True
                 matching = None
-                for i,observer in self.ex.observers:
+                for i,observer in enumerate(self.ex.observers):
                     if observer == self.observer_mapping[self.ex]:
                         matching = i
                 if matching is None:
