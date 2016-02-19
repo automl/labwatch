@@ -1,21 +1,27 @@
 from __future__ import division, print_function, unicode_literals
-import pymongo
+import sys
+import time
 from datetime import datetime
 from datetime import timedelta
-import time
 
 import pymongo
 import gridfs
 from pymongo.son_manipulator import SONManipulator
 
+import sacred.optional as opt
+if not opt.has_pymongo:
+    raise RuntimeError("pymongo not found but needed by LabAssistant")
 from sacred.observers import MongoObserver
+from sacred.observers.mongo import MongoDbOption
 from sacred.utils import create_basic_stream_logger
 from sacred.commandline_options import QueueOption
+from sacred.arg_parser import parse_args
 
 from labwatch.utils.types import InconsistentSpace
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.searchspace import SearchSpace, build_searchspace
 from labwatch.optimizers import RandomSearch
+from labwatch.commandline_options import AssistedOption
 
 
 # SON Manipulators for saving and retrieving search spaces
@@ -69,14 +75,10 @@ class LabAssistant(object):
         self.prefix = prefix
         self.version_policy = 'newer'
         self.always_inject_observer = always_inject_observer
+        self.optimizer = optimizer
         if self.db is not None:
-            self.runs = self.db[self.prefix].runs
-            self.db_searchspace = self.db[self.prefix].search_space
-            self.optimizer = optimizer
-            for manipulator in SON_MANIPULATORS:
-                self.db.add_son_manipulator(manipulator)
+            self._init_db()
         else:
-            self.logger.warn("have no database! Using random search!")
             self.runs = None
             self.db_searchspace = None
             self.optimizer = None
@@ -88,11 +90,22 @@ class LabAssistant(object):
         self.last_checked = None
         self.space_initialized = False
         self.search_space = None
+        ##### Experiment modifications #####
+        # first add a hook to the experiment
+        self._add_hook(self.ex)
+        # then inject an observer if it is required
+        if self.db is not None and self.always_inject_observer:
+            self._inject_observer(self.ex)
 
+    def _init_db(self):
+        self.runs = self.db[self.prefix].runs
+        self.db_searchspace = self.db[self.prefix].search_space
+        for manipulator in SON_MANIPULATORS:
+            self.db.add_son_manipulator(manipulator)
+        
     def _verify_and_init_searchspace(self, space_from_ex, new_space=False):
         # try to figure out if a searchspace is defined in the database
         if self.db is None:
-            self.logger.warn("cannot verify searchspace, have no database!")
             self.space_initialized = True
             self.search_space = space_from_ex
             self.optimizer = RandomSearch(self.search_space)
@@ -137,38 +150,64 @@ class LabAssistant(object):
                 res[key] = config[key]
         return res
     
-    def _config_hook(self, orig_cfg, command_name, logger):
+    def _config_hook(self, orig_cfg, command_name, logger, args):
+        # ensure we have a search space definition
         if (not self.space_initialized) or (self.search_space is None):
             raise ValueError("LabAssistant config_hook called but " \
                              "there is no search space definition")
+        # if there was no database passed to the assistant
+        # try to fetch one from the args
+        logger = logger.getChild('LabAssistant')
+        if self.db is None:
+            db_flag = "--" + MongoDbOption.get_flag()[1]
+            if args.has_key(db_flag) and args[db_flag] is not None:
+                logger.info("Using db provided via {} flag".format(db_flag))
+                db_name = args[db_flag]
+                c = pymongo.MongoClient()
+                self.db = c[db_name]
+                # init database
+                self._init_db()
+                # verify searchspace against database
+                try:
+                    self._verify_and_init_searchspace(self.search_space)
+                except:
+                    logger.warn("Tried to use db provided via flag but caught an exception")
+                    self.db = None
+                    self.runs = None
+                    self.db_searchspace = None
+                    self.optimizer = None
+            else:
+                logger.warn("have no database! Using random search!")        
+        # check for assisted flag in args
+        flag_string = "--" + AssistedOption.get_flag()[1]
+        if args.has_key(flag_string):
+            assist_command = args[flag_string]
+        else:
+            assist_command = False
         cfg = self.get_suggestion()
         result_cfg = {}
-        for key in cfg.keys():
-            if orig_cfg.has_key(key):
-                result_cfg[key] = cfg[key]
-            else:
-                # check if the key starts with an underscore
-                # in which case it is safe for the default
-                # not to contain it, otherwise we warn the user
-                err = "dropping config value for {} " + \
-                      "This happens because your default config " + \
-                      "does not contain it"
-                if isinstance(key, basestring) and len(key) > 0 and key[0] != '_':
-                    logger.warn(err.format(key))
+        if assist_command:
+            for key in cfg.keys():
+                if orig_cfg.has_key(key):
+                    result_cfg[key] = cfg[key]
+                else:
+                    # check if the key starts with an underscore
+                    # in which case it is safe for the default
+                    # not to contain it, otherwise we warn the user
+                    err = "config value for {}, which LabAssistant wants to fill "  \
+                          "is not in the original config! " + \
+                          "This happens because your default config " + \
+                          "does not contain it"
+                    if isinstance(key, basestring) and len(key) > 0 and key[0] != '_':
+                        logger.warn(err.format(key))
+                        result_cfg[key] = cfg[key] 
         return result_cfg
 
     def _add_hook(self, ex):
-        def hook_closure(config, command_name, logger):
-            return self._config_hook(config, command_name, logger)
+        def hook_closure(config, command_name, logger, args):
+            return self._config_hook(config, command_name, logger, args)
         ex.config_hook(hook_closure)
         self.have_hooks_for.add(ex)
-
-    def _add_unassisted_command(self, ex):
-        #def unassisted()
-        #print(ex.commands.keys())
-        #ex.commands["unassisted"] = ex.comman
-        #print(ex.command(function=unassisted))
-        pass
         
     def _inject_observer(self, ex):
         if self.db is None:
@@ -352,33 +391,3 @@ class LabAssistant(object):
         space = build_searchspace(function)
         # validate the search space
         return self._verify_and_init_searchspace(space)
-    
-    def main(self, function):
-        """
-        Decorator that wraps around the Experiment main decorator
-        And injects a config hook into the experiment.
-        """
-        # first add a hook to the experiment
-        self._add_hook(self.ex)
-        # then inject an observer if it is required
-        if self.db is not None and self.always_inject_observer:
-            self._inject_observer(self.ex)
-        ex_main = self.ex.main(function)
-        # TODO: inject a command that runs the main function "unassisted"
-        self._add_unassisted_command(self.ex)
-        return ex_main
-
-    def automain(self, function):
-        """
-        Decorator that wraps around the Experiment automain decorator
-        And injects a config hook into the experiment.
-        """
-        self._add_unassisted_command(self.ex)
-        # first add a hook to the experiment
-        self._add_hook(self.ex)
-        # then inject an observer if it is required
-        if self.db is not None and self.always_inject_observer:
-            self._inject_observer(self.ex)
-        ex_main = self.ex.automain(function)
-        self._add_unassisted_command(self.ex)
-        return ex_main
