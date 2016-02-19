@@ -52,7 +52,10 @@ class SearchSpace(FixedDict):
                 err = "Conditional parameter: {} depends on: {} " \
                       "which does not exist in the defined SearchSpace!"
                 raise InconsistentSpace(err.format(pname, conditioned_on))
-                 
+
+    def is_valid_name(self, name):
+        return name in self.uids_to_names.values()
+        
     def valid(self, config):
         # TODO check this again for consistency
         valid = True

@@ -26,6 +26,9 @@ from labwatch.optimizers import RandomSearch
 from labwatch.commandline_options import AssistedOption
 
 
+#import pprint
+#pp = pprint.PrettyPrinter(indent=4)
+
 # SON Manipulators for saving and retrieving search spaces
 SON_MANIPULATORS = []
 
@@ -157,18 +160,18 @@ class LabAssistant(object):
             self.optimizer = self.optimizer.__class__(space_from_db)
         else:
             self.optimizer = RandomSearch(space_from_db)
+        self.space_initialized = True
+        self.search_space = space_from_db
         # update the optimizer 
         if self.optimizer.needs_updates():
             self.update_optimizer()
-        self.space_initialized = True
-        self.search_space = space_from_db
         return self.search_space
 
     def _clean_config(self, config):
         res = {}
         for key in config.keys():
-            if isinstance(key, basestring) and len(key) > 0 and key[0] == '_':
-                # ignore this key
+            if not self.search_space.is_valid_name(key):
+                # ignore this key as it is not part of the searchspace
                 continue
             else:
                 res[key] = config[key]
@@ -300,8 +303,8 @@ class LabAssistant(object):
             if job["_id"] not in self.known_jobs:
                 # update optimizer with all finished results
                 if job['status'] == 'COMPLETED':
-                    self.optimizer.update(job["config"],
-                                          job["final_outcome"])
+                    self.optimizer.update(self._clean_config(job["config"]),
+                                          job["result"])
                     # mark it as known
                     self.known_jobs.add(job["_id"])
                 elif job["status"] == "RUNNING":

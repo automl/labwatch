@@ -6,7 +6,7 @@ import pymongo
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
 from labwatch.hyperparameters import UniformFloat
-
+import numpy as np
 
 c = pymongo.MongoClient()
 db = c.labwatch_demo
@@ -21,10 +21,12 @@ def cfg():
 
 @a.searchspace
 def search_space():
-    C = UniformFloat(lower=0, upper=10 , log_scale=True)
+    C = UniformFloat(lower=0, upper=10, log_scale=True)
     gamma = UniformFloat(lower=0, upper=10)
   
 @ex.automain
 def main(C, gamma):
     print(C)
     print(gamma)
+
+    return gamma * np.exp(C)
