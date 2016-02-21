@@ -262,33 +262,33 @@ class Gaussian(Parameter):
     """ A Gaussian just has a different distribution 
     """
     def __init__(self,
-                 mean,
-                 std,
+                 mu,
+                 sigma,
                  log_scale=False,
                  uid=None):
         type = float
         fixed = {
-            "mean" : type(mean),
-            "std" : type(std),
+            "mu" : type(mu),
+            "sigma" : type(sigma),
             "type" : types_to_str[type],
             "log_scale" : log_scale
         }
         super(Gaussian, self).__init__(uid=uid, fixed = fixed)
 
     def default(self):
-        return self["mean"]
+        return self["mu"]
         
     def sample(self):
         mtype = str_to_types[self["type"]]
-        mean = self["mean"]
-        std = self["std"]
+        mu = self["mu"]
+        sigma = self["sigma"]
         if not (type == float):
             raise ParamValueExcept("Parameter with normal distribution" \
                                    " must be float!")
         if self["log_scale"]:
-            return np.random.lognormal(mtype(mean), mtype(std))
+            return np.random.lognormal(mtype(mu), mtype(sigma))
         else:
-            return np.random.normal(mtype(mean), mtype(std))
+            return np.random.normal(mtype(mu), mtype(sigma))
 
     def valid(self, value):
         return isinstance(value, (float, int, long))
@@ -297,10 +297,10 @@ class Gaussian(Parameter):
     def decode(cls, storage):
         uid = storage["uid"]
         type = str_to_types[storage["type"]]
-        mean = type(storage["mean"])
-        std = type(storage["std"])
+        mu = type(storage["mu"])
+        sigma = type(storage["sigma"])
         log_scale = bool(storage["log_scale"])
-        return cls(mean, std, log_scale, uid=uid)    
+        return cls(mu, sigma, log_scale, uid=uid)    
 
 class ConditionResult(Parameter):
 
