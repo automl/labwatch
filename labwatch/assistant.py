@@ -316,22 +316,17 @@ class LabAssistant(object):
                         oldest_still_running = min(job["start_time"], oldest_still_running)
         self.last_checked = oldest_still_running or datetime.now()
 
-    def get_suggestion(self, clean=False):
+    def get_suggestion(self):
         if (not self.space_initialized) or (self.search_space is None):
             raise ValueError("LabAssistant sample_suggestion called " \
                              "without a defined search space")
         if self.optimizer.needs_updates():
             self.update_optimizer()
-        config = self.optimizer.suggest_configuration()
-        # clean underscored variables
-        if clean:
-           config = self._clean_config(config)
-                        
-        return config
+        return self.optimizer.suggest_configuration()
                 
     def run_suggestion(self, command='main'):
         # Next get config from optimizer
-        config = self.get_suggestion(clean=True)
+        config = self._clean_config(self.get_suggestion())
         if config is None:
             raise RuntimeError("Optimizer did not return a config!")
         self._inject_observer(self.ex)
@@ -358,7 +353,7 @@ class LabAssistant(object):
 
     def enqueue_suggestion(self, command='main'):
         # Next get config from optimizer
-        config = self.get_suggestion(clean=True)
+        config = self._clean_config(self.get_suggestion())
         if config is None:
             raise RuntimeError("Optimizer did not return a config!")
         self._inject_observer(self.ex)
