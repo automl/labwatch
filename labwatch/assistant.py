@@ -81,7 +81,7 @@ class LabAssistant(object):
         self.prefix = prefix
         self.version_policy = 'newer'
         self.always_inject_observer = always_inject_observer
-        self.optimizer = optimizer
+        self.optimizer_class = optimizer
         if self.db is not None:
             self._init_db()
         else:
@@ -156,8 +156,9 @@ class LabAssistant(object):
             sp_id = self.db_searchspace.insert(space_from_ex)
             space_from_db = self.db_searchspace.find_one({"_id" : sp_id})
         self.space_id = space_from_db["_id"]
-        if self.optimizer:
-            self.optimizer = self.optimizer.__class__(space_from_db)
+        self.optimizer = None
+        if self.optimizer_class is not None:
+            self.optimizer = self.optimizer_class(space_from_db)
         else:
             self.optimizer = RandomSearch(space_from_db)
         self.space_initialized = True
@@ -304,7 +305,7 @@ class LabAssistant(object):
                 # update optimizer with all finished results
                 if job['status'] == 'COMPLETED':
                     self.optimizer.update(self._clean_config(job["config"]),
-                                          job["result"])
+                                          job["result"], job)
                     # mark it as known
                     self.known_jobs.add(job["_id"])
                 elif job["status"] == "RUNNING":

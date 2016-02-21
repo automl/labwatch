@@ -18,7 +18,7 @@ class Optimizer(object):
         """
         return None
 
-    def update(self, config, performance):
+    def update(self, config, cost, run_info):
         raise NotImplementedError("update called on base class Optimizer. Use a derived class instead!")
 
     def needs_updates(self):
@@ -32,7 +32,7 @@ class RandomSearch(Optimizer):
     def suggest_configuration(self):
         return self.get_random_config()
 
-    def update(self, config, performance):
+    def update(self, config, cost, run_info):
         pass
 
     def needs_updates(self):
