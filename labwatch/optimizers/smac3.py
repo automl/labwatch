@@ -69,7 +69,7 @@ class SMAC3(object):
             # Alternatively we could evaluate the default
             # but that might be dangerous if we run multiple
             # workers in parallel
-            return self.sacred_space.sample()
+            return self.sacred_space.sample()              
         X_cfg, Y_cfg = self.rh2EPM.transform(self.run_history)
         next_config = self.smac.choose_next(X_cfg, Y_cfg)
         result = configspace_config_to_sacred(next_config)

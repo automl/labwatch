@@ -7,6 +7,7 @@ from labwatch.utils.types import ParamValueExcept
 from ConfigSpace import ConfigurationSpace, Configuration
 import ConfigSpace.hyperparameters as csh
 from ConfigSpace.conditions import InCondition
+import numpy as np
 
 def convert_simple_param(name, param):
     if param["_class"] == 'Constant':
@@ -100,7 +101,7 @@ def sacred_space_to_configspace(space):
         non_conditions[name] = converted_result
         conditions.append(cond)
     # finally build the ConfigSpace
-    cs = ConfigurationSpace()
+    cs = ConfigurationSpace(seed=np.random.randint(1, 1234567))
     for _name, param in non_conditions.items():
         cs.add_hyperparameter(param)
     for cond in conditions:
