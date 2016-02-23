@@ -323,6 +323,23 @@ class LabAssistant(object):
         if self.optimizer.needs_updates():
             self.update_optimizer()
         return self.optimizer.suggest_configuration()
+
+    def get_current_best(self, return_job_info=False):
+        if self.db is None:
+            self.logger.warn("cannot update optimizer, reason: no database!")
+            return
+        # ("status", 1) sorts according to status in ascending order
+        best_job = self.runs.find_one({'status' : 'COMPLETED'},sort=[("result", 1)])
+        if best_job is None:
+            best_result = None
+            best_config = None
+        else:
+            best_result = best_job["result"]
+            best_config = self._clean_config(best_job["config"])
+        if return_job_info:
+            return best_config, best_result, best_job
+        else:
+            return best_config, best_result
                 
     def run_suggestion(self, command='main'):
         # Next get config from optimizer
