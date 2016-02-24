@@ -21,13 +21,7 @@ class RoBOWrapper(object):
     def __init__(self, config_space,
                  burnin=1000,
                  chain_length=200,
-                 n_hypers=20,
-                 rng=None):
-
-        if rng is None:
-            self.rng = np.random.RandomState(seed=np.random.randint(1000))
-        else:
-            self.rng = rng
+                 n_hypers=20):
 
         self.burnin = burnin
         self.chain_length = chain_length
@@ -50,13 +44,14 @@ class RoBOWrapper(object):
             new_x = init_random_uniform(self.X_lower,
                                        self.X_upper,
                                        N=1,
-                                       rng=self.rng)
+                                       rng=np.random.get_state())
 
         elif self.X.shape[0] == 1:
             # We need at least 2 data points to train a GP
             new_x = init_random_uniform(self.X_lower,
                                     self.X_upper,
-                                    N=1)
+                                    N=1,
+                                    rng=np.random.get_state())
 
         else:
             cov_amp = 1
