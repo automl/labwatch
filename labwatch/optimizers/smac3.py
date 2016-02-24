@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 
 from smac.smbo.smbo import SMBO
 from smac.scenario.scenario import Scenario
@@ -9,6 +10,7 @@ from smac.runhistory.runhistory2epm import RunHistory2EPM
 from labwatch.converters.convert_to_configspace import sacred_space_to_configspace
 from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
 from labwatch.converters.convert_to_configspace import configspace_config_to_sacred
+
 
 class LabwatchScenario(Scenario):
     """
@@ -26,7 +28,7 @@ class LabwatchScenario(Scenario):
         self.run_obj = 'QUALITY'
         self.overall_obj = self.run_obj
 
-        # Time limits for smac 
+        # Time limits for smac
         # these will never be used since we call
         # smac.choose_next() manually
         self.cutoff = None
@@ -45,16 +47,16 @@ class LabwatchScenario(Scenario):
         # save reference to config_space
         self.cs = config_space
 
+
 class SMAC3(object):
 
     def __init__(self, config_space):
-        # JTS TODO: fix seed handling
-        seed = 123
+
         self.sacred_space = config_space
         self.config_space = sacred_space_to_configspace(config_space)
         self.scenario = LabwatchScenario(self.config_space, None)
         self.run_history = RunHistory()
-        self.smac = SMBO(self.scenario, seed)
+        self.smac = SMBO(self.scenario, np.random.get_state())
         self.num_params = len(self.config_space.get_hyperparameters())
         self.rh2EPM = RunHistory2EPM(num_params=self.num_params,
                                      cutoff_time=1e7,
@@ -71,11 +73,15 @@ class SMAC3(object):
             # workers in parallel
             return self.sacred_space.sample()
         X_cfg, Y_cfg = self.rh2EPM.transform(self.run_history)
+
         next_config = self.smac.choose_next(X_cfg, Y_cfg)
+
         result = configspace_config_to_sacred(next_config)
+
         return result
 
     def update(self, config, cost, run_info):
+
         # JTS TODO: also fetch duration, status and seed
         # JTS TODO: ponder cost vs performance
         duration = 1
@@ -86,7 +92,6 @@ class SMAC3(object):
         self.run_history.add(config=converted_config, cost=cost,
                              time=duration, status=status,
                              instance_id=0, seed=seed)
-                             
 
     def needs_updates(self):
         return True

@@ -2,11 +2,13 @@ from labwatch.searchspace import SearchSpace
 from labwatch.utils.types import str_to_class, \
     basic_types, types_to_str, str_to_types
 from labwatch.utils.types import ParamValueExcept
+import numpy as np
 
 # TODO: guard ConfigSpace import
 from ConfigSpace import ConfigurationSpace, Configuration
 import ConfigSpace.hyperparameters as csh
 from ConfigSpace.conditions import InCondition
+
 
 def convert_simple_param(name, param):
     if param["_class"] == 'Constant':
@@ -23,7 +25,7 @@ def convert_simple_param(name, param):
                       "a base type or Constant!"
                 raise ParamValueExcept(err.format(choice))
             else:
-                basic_choices.append(choice)        
+                basic_choices.append(choice)
         return csh.CategoricalHyperparameter(name=name,
                                             choices=basic_choices,
                                             default=basic_choices[0])
@@ -61,7 +63,7 @@ def convert_simple_param(name, param):
                                             mu=param["mu"],
                                             sigma=param["sigma"],
                                             log=param["log_scale"])
-                                         
+
     else:
         raise ValueError("Don't know how to represent {} in ConfigSpace notation.".format(param))
 
@@ -81,7 +83,7 @@ def sacred_space_to_configspace(space):
         condition = param["condition"]
         condition_name = space.uids_to_names[condition["uid"]]
         converted_condition = None
-        if non_conditions.has_key(condition_name):            
+        if non_conditions.has_key(condition_name):
             converted_condition = non_conditions[condition_name]
         else:
             raise ValueError("Unknown parameter in Condition")
@@ -90,7 +92,7 @@ def sacred_space_to_configspace(space):
             if isinstance(choice, dict):
                 if choice["_class"] != "Constant":
                     raise ValueError("Invalid choice encountered in Condition")
-                
+
                 converted_choices.append(choice["value"])
             else:
                 converted_choices.append(choice)
@@ -100,12 +102,13 @@ def sacred_space_to_configspace(space):
         non_conditions[name] = converted_result
         conditions.append(cond)
     # finally build the ConfigSpace
-    cs = ConfigurationSpace()
+    cs = ConfigurationSpace(seed=np.random.seed())
     for _name, param in non_conditions.items():
         cs.add_hyperparameter(param)
     for cond in conditions:
         cs.add_condition(cond)
     return cs
+
 
 def sacred_config_to_configspace(cspace, config):
     if isinstance(cspace, SearchSpace):
@@ -114,6 +117,7 @@ def sacred_config_to_configspace(cspace, config):
                          "but an instance of ConfigSpace.ConfigurationSpace " \
                          "is required. Use sacred_space_to_configspace().")
     return Configuration(cspace, values=config)
+
 
 def configspace_config_to_sacred(config):
     result = {}

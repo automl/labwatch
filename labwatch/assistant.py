@@ -177,7 +177,7 @@ class LabAssistant(object):
             else:
                 res[key] = config[key]
         return res
-    
+
     def _config_hook(self, orig_cfg, command_name, logger, args):
         # ensure we have a search space definition
         if (not self.space_initialized) or (self.search_space is None):
