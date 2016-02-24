@@ -25,7 +25,7 @@ def convert_simple_param(name, param):
                       "a base type or Constant!"
                 raise ParamValueExcept(err.format(choice))
             else:
-                basic_choices.append(choice)
+                basic_choices.append(choice)        
         return csh.CategoricalHyperparameter(name=name,
                                             choices=basic_choices,
                                             default=basic_choices[0])
@@ -63,7 +63,7 @@ def convert_simple_param(name, param):
                                             mu=param["mu"],
                                             sigma=param["sigma"],
                                             log=param["log_scale"])
-
+                                         
     else:
         raise ValueError("Don't know how to represent {} in ConfigSpace notation.".format(param))
 
@@ -83,7 +83,7 @@ def sacred_space_to_configspace(space):
         condition = param["condition"]
         condition_name = space.uids_to_names[condition["uid"]]
         converted_condition = None
-        if non_conditions.has_key(condition_name):
+        if non_conditions.has_key(condition_name):            
             converted_condition = non_conditions[condition_name]
         else:
             raise ValueError("Unknown parameter in Condition")
