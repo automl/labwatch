@@ -298,23 +298,34 @@ class LabAssistant(object):
             self.last_checked = datetime.min
         oldest_still_running = None
         running_jobs = self.runs.find(
-            {'heartbeat': {'$gte': self.last_checked}}
+            {
+                'heartbeat': {'$gte': self.last_checked},
+                'status' : 'RUNNING'
+            },
+            sort=[("start_time", 1)]
         )
-        for job in running_jobs:
-            if job["_id"] not in self.known_jobs:
-                # update optimizer with all finished results
-                if job['status'] == 'COMPLETED':
-                    self.optimizer.update(self._clean_config(job["config"]),
-                                          job["result"], job)
-                    # mark it as known
-                    self.known_jobs.add(job["_id"])
-                elif job["status"] == "RUNNING":
-                    # TODO this is not correct
-                    if oldest_still_running is None:
-                        oldest_still_running = job["start_time"]
-                    else:
-                        oldest_still_running = min(job["start_time"], oldest_still_running)
-        self.last_checked = oldest_still_running or datetime.now()
+        #
+        completed_jobs = self.runs.find(
+            {
+                'heartbeat': {'$gte': self.last_checked},
+                'status' : 'COMPLETED'
+            }
+        )
+        # update the last checked to the oldest one that is still running
+        self.last_checked = datetime.now()
+        # collect all configs and their results
+        info = [(self._clean_config(job["config"]), job["result"], job)
+                for job in completed_jobs if job["_id"] not in self.known_jobs]
+        if len(info) > 0:
+            configs, results, jobs = (list(x) for x in zip(*info))
+            for job in jobs:
+                self.known_jobs.add(job["_id"])
+            modifications = self.optimizer.update(configs, results, jobs)
+            # the optimizer might modify the additional info of jobs
+            if modifications is not None:
+                for job in modifications:
+                    # TODO apply these modifications 
+                    pass
 
     def get_suggestion(self):
         if (not self.space_initialized) or (self.search_space is None):

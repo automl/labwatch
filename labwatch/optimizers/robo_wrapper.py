@@ -16,7 +16,7 @@ from labwatch.converters.convert_to_configspace import sacred_config_to_configsp
 from labwatch.converters.convert_to_configspace import configspace_config_to_sacred
 
 
-class RoBOWrapper(object):
+class RoBO(object):
 
     def __init__(self, config_space,
                  burnin=1000,
@@ -90,20 +90,20 @@ class RoBOWrapper(object):
 
         return result
 
-    def update(self, config, cost, run_info):
+    def update(self, configs, costs, run_infos):
+        converted_configs = [sacred_config_to_configspace(self.config_space, config)
+                             for config in configs]
 
-        converted_config = sacred_config_to_configspace(self.config_space,
-                                                        config)
+        for (config, cost, info) in zip(converted_configs, costs, run_infos):
+            # Maps configuration to [0, 1]^D space
+            x = config.get_array()
 
-        # Maps configuration to [0, 1]^D space
-        x = converted_config.get_array()
-
-        if self.X is None and self.Y is None:
-            self.X = np.array([x])
-            self.Y = np.array([[cost]])
-        else:
-            self.X = np.append(self.X, x[np.newaxis, :], axis=0)
-            self.Y = np.append(self.Y, np.array([[cost]]), axis=0)
+            if self.X is None and self.Y is None:
+                self.X = np.array([x])
+                self.Y = np.array([[cost]])
+            else:
+                self.X = np.append(self.X, x[np.newaxis, :], axis=0)
+                self.Y = np.append(self.Y, np.array([[cost]]), axis=0)
 
     def needs_updates(self):
         return True
