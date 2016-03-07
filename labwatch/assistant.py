@@ -1,36 +1,32 @@
+#!/usr/bin/env python
+# coding=utf-8
 from __future__ import division, print_function, unicode_literals
-import sys
-import time
+
 from datetime import datetime
-from datetime import timedelta
+import time
 
-import pymongo
 import gridfs
+import pymongo
 from pymongo.son_manipulator import SONManipulator
-
 import sacred.optional as opt
+from sacred.commandline_options import QueueOption
+from sacred.observers.mongo import MongoObserver, MongoDbOption
+from sacred.utils import create_basic_stream_logger
+from six import string_types
+
+from labwatch.commandline_options import AssistedOption
+from labwatch.optimizers import RandomSearch
+from labwatch.searchspace import SearchSpace, build_searchspace
+from labwatch.utils.types import InconsistentSpace
+from labwatch.utils.version_checks import (check_dependencies, check_sources,
+                                           check_names)
+
 if not opt.has_pymongo:
     raise RuntimeError("pymongo not found but needed by LabAssistant")
-from sacred.observers import MongoObserver
-from sacred.observers.mongo import MongoDbOption
-from sacred.utils import create_basic_stream_logger
-from sacred.commandline_options import QueueOption
-from sacred.arg_parser import parse_args
-
-from labwatch.utils.types import InconsistentSpace
-from labwatch.utils.version_checks import check_dependencies, \
-    check_sources, check_names
-from labwatch.hyperparameters import decode_param_or_op
-from labwatch.searchspace import SearchSpace, build_searchspace
-from labwatch.optimizers import RandomSearch
-from labwatch.commandline_options import AssistedOption
-
-
-#import pprint
-#pp = pprint.PrettyPrinter(indent=4)
 
 # SON Manipulators for saving and retrieving search spaces
 SON_MANIPULATORS = []
+
 
 class SearchSpaceManipulator(SONManipulator):
 
@@ -82,6 +78,7 @@ class LabAssistant(object):
         self.version_policy = 'newer'
         self.always_inject_observer = always_inject_observer
         self.optimizer_class = optimizer
+        self.block_time = 1000  # TODO: what value should this be?
         if self.db is not None:
             self._init_db()
         else:
@@ -96,7 +93,7 @@ class LabAssistant(object):
         self.last_checked = None
         self.space_initialized = False
         self.search_space = None
-        ##### Experiment modifications #####
+        # #### Experiment modifications #####
         # first add a hook to the experiment
         self._add_hook(self.ex)
         # then inject an observer if it is required
@@ -111,7 +108,7 @@ class LabAssistant(object):
 
     def _parse_db_from_args(self, args, logger):
         db_flag = "--" + MongoDbOption.get_flag()[1]
-        if args.has_key(db_flag) and args[db_flag] is not None:
+        if args.get(db_flag) is not None:
             logger.info("Using db provided via {} flag".format(db_flag))
             db_name = args[db_flag]
             c = pymongo.MongoClient()
@@ -123,14 +120,15 @@ class LabAssistant(object):
                 self._verify_and_init_searchspace(self.search_space)
                 return True
             except:
-                logger.warn("Tried to use db provided via args but caught an exception")
+                logger.warn("Tried to use db provided via args but caught an "
+                            "exception", exc_info=True)
                 self.db = None
                 self.runs = None
                 self.db_searchspace = None
                 self.optimizer = None
         return False
-        
-    def _verify_and_init_searchspace(self, space_from_ex, new_space=False):
+
+    def _verify_and_init_searchspace(self, space_from_ex):
         # try to figure out if a searchspace is defined in the database
         if self.db is None:
             self.space_initialized = True
@@ -142,19 +140,19 @@ class LabAssistant(object):
             if space_from_ex is not None:
                 # if this search space has no id we set it to
                 # the one from the database before comparing
-                if not space_from_ex.has_key("_id"):
+                if "_id" not in space_from_ex:
                     space_from_ex["_id"] = space_from_db["_id"]
-                if (space_from_db != space_from_ex):
-                    raise InconsistentSpace("The search space of your experiment " \
-                                            "is incompatible with the space " \
-                                            "stored in the database! Use "\
-                                            "new_space=True if it changed.")
+                if space_from_db != space_from_ex:
+                    raise InconsistentSpace("The search space of your "
+                                            "experiment is incompatible with "
+                                            "the one stored in the database! "
+                                            "Use new_space=True if it changed")
         else:
             if space_from_ex is None:
-                raise RuntimeError("You provided no search space and no " \
+                raise RuntimeError("You provided no search space and no "
                                    "space is saved in the database!")
             sp_id = self.db_searchspace.insert(space_from_ex)
-            space_from_db = self.db_searchspace.find_one({"_id" : sp_id})
+            space_from_db = self.db_searchspace.find_one({"_id": sp_id})
         self.space_id = space_from_db["_id"]
         self.optimizer = None
         if self.optimizer_class is not None:
@@ -181,7 +179,7 @@ class LabAssistant(object):
     def _config_hook(self, orig_cfg, command_name, logger, args):
         # ensure we have a search space definition
         if (not self.space_initialized) or (self.search_space is None):
-            raise ValueError("LabAssistant config_hook called but " \
+            raise ValueError("LabAssistant config_hook called but "
                              "there is no search space definition")
         # if there was no database passed to the assistant
         # try to fetch one from the args
@@ -192,25 +190,22 @@ class LabAssistant(object):
                 logger.warn("have no database! Using random search!")
         # check for assisted flag in args
         flag_string = "--" + AssistedOption.get_flag()[1]
-        if args.has_key(flag_string):
-            assist_command = args[flag_string]
-        else:
-            assist_command = False
+        assist_command = args.get(flag_string, False)
         cfg = self.get_suggestion()
         result_cfg = {}
         if assist_command:
             for key in cfg.keys():
-                if orig_cfg.has_key(key):
+                if key in orig_cfg:
                     result_cfg[key] = cfg[key]
                 else:
                     # check if the key starts with an underscore
                     # in which case it is safe for the default
                     # not to contain it, otherwise we warn the user
-                    err = "config value for {}, which LabAssistant wants to fill "  \
-                          "is not in the original config! " + \
-                          "This happens because your default config " + \
-                          "does not contain it"
-                    if isinstance(key, basestring) and len(key) > 0 and key[0] != '_':
+                    err = ("config value for {}, which LabAssistant wants to "
+                           "fill is not in the original config! "
+                           "This happens because your default config "
+                           "does not contain it")
+                    if isinstance(key, string_types) and key and key[0] != '_':
                         logger.warn(err.format(key))
                         result_cfg[key] = cfg[key] 
         return result_cfg
@@ -223,9 +218,9 @@ class LabAssistant(object):
         
     def _inject_observer(self, ex):
         if self.db is None:
-            raise ValueError("LabAssistant has no database " \
+            raise ValueError("LabAssistant has no database "
                              "but you called inject_observer")
-        if self.observer_mapping.has_key(ex):
+        if ex in self.observer_mapping:
             # we already have an observer for this experiment
             return
         # otherwise create a new one
@@ -238,21 +233,21 @@ class LabAssistant(object):
         for observer in ex.observers:
             name = observer.runs.name
             if name in collection_names:
-                self.logger.warn("Multiple MongoObservers with the same " \
-                                 "collection name, make sure they are writing " \
+                self.logger.warn("Multiple MongoObservers with the same "
+                                 "collection name, make sure they are writing "
                                  "into different databases!")
             collection_names.add(name)
 
     def _dequeue_run(self, remaining_time, sleep_time):
-        criterion = {'status':'QUEUED'}
+        criterion = {'status': 'QUEUED'}
         ex_info = self.ex.get_experiment_info()
         run = None
         start_time = time.time()
         while remaining_time > 0.:
             run = self.runs.find_one(criterion)
             if run is None:
-                self.logger.warn('Could not find run from queue ' \
-                                 'waiting for max another {} s'.format(remaining_time))
+                self.logger.warn('Could not find run from queue waiting for '
+                                 'max another {} s'.format(remaining_time))
                 time.sleep(sleep_time)
                 expired_time = (time.time() - start_time)
                 remaining_time = self.block_time - expired_time
@@ -279,7 +274,7 @@ class LabAssistant(object):
                     break  # we've successfully acquired a run
         return run
         
-    ###################### exported functions ######################
+    # ########################## exported functions ###########################
 
     def set_database(self, database):
         self.db = database
@@ -300,7 +295,7 @@ class LabAssistant(object):
         running_jobs = self.runs.find(
             {
                 'heartbeat': {'$gte': self.last_checked},
-                'status' : 'RUNNING'
+                'status': 'RUNNING'
             },
             sort=[("start_time", 1)]
         )
@@ -308,7 +303,7 @@ class LabAssistant(object):
         completed_jobs = self.runs.find(
             {
                 'heartbeat': {'$gte': self.last_checked},
-                'status' : 'COMPLETED'
+                'status': 'COMPLETED'
             }
         )
         # update the last checked to the oldest one that is still running
@@ -329,7 +324,7 @@ class LabAssistant(object):
 
     def get_suggestion(self):
         if (not self.space_initialized) or (self.search_space is None):
-            raise ValueError("LabAssistant sample_suggestion called " \
+            raise ValueError("LabAssistant sample_suggestion called "
                              "without a defined search space")
         if self.optimizer.needs_updates():
             self.update_optimizer()
@@ -340,7 +335,8 @@ class LabAssistant(object):
             self.logger.warn("cannot update optimizer, reason: no database!")
             return
         # ("status", 1) sorts according to status in ascending order
-        best_job = self.runs.find_one({'status' : 'COMPLETED'},sort=[("result", 1)])
+        best_job = self.runs.find_one({'status': 'COMPLETED'},
+                                      sort=[("result", 1)])
         if best_job is None:
             best_result = None
             best_config = None
@@ -351,32 +347,26 @@ class LabAssistant(object):
             return best_config, best_result, best_job
         else:
             return best_config, best_result
-                
-    def run_suggestion(self, command='main'):
-        # Next get config from optimizer
-        config = self._clean_config(self.get_suggestion())
+
+    def run_suggestion(self, command=None):
+        # get config from optimizer
+        return self.run_config(self.get_suggestion(), command)
+
+    def run_random(self, command=None):
+        return self.run_config(self.optimizer.get_random_config(), command)
+
+    def run_default(self, command=None):
+        return self.run_config(self.optimizer.get_default_config(), command)
+
+    def run_config(self, config, command=None):
         if config is None:
-            raise RuntimeError("Optimizer did not return a config!")
-        self._inject_observer(self.ex)
-        res = self.ex.run_command(command, config_updates=config)
-        return res
-
-    def run_random(self, command='main'):
-        config = self._clean_config(self.optimizer.get_random_config())
-        self._inject_observer(self.ex)
-        res = self.ex.run_command(command, config_updates=config)
-        return res
-
-    def run_default(self, command='main'):
-        config = self._clean_config(self.optimizer.get_default_config())
-        self._inject_observer(self.ex)
-        res = self.ex.run_command(command, config_updates=config)
-        return res
-
-    def run_config(self, config, command='main'):
+            raise RuntimeError("None is not an acceptable config!")
         config = self._clean_config(config)
         self._inject_observer(self.ex)
-        res = self.ex.run_command(command, config_updates=config)
+        if command is None:
+            res = self.ex.run(config_updates=config)
+        else:
+            res = self.ex.run_command(command, config_updates=config)
         return res
 
     def enqueue_suggestion(self, command='main'):
@@ -387,22 +377,21 @@ class LabAssistant(object):
         self._inject_observer(self.ex)
         res = self.ex.run_command(command,
                                   config_updates=config,
-                                  args={ "--queue" : QueueOption()})                                  
-        
-    
+                                  args={"--queue": QueueOption()})
+
     def run_from_queue(self, wait_time_in_s=10 * 60, sleep_time=5):
-        criterion = {'status':'QUEUED'}
         run = self._dequeue_run(wait_time_in_s, sleep_time)
         if run is None:
-            self.logger.warn("No run found in queue for {} s -> terminating".format(wait_time_in_s))
+            self.logger.warn("No run found in queue for {} s -> terminating"
+                             .format(wait_time_in_s))
             return None
         else:
             # remove MongoObserver if we have one for that experiment
             had_matching_observer = False
-            if self.observer_mapping.has_key(self.ex):
+            if self.ex in self.observer_mapping:
                 had_matching_observer = True
                 matching = None
-                for i,observer in enumerate(self.ex.observers):
+                for i, observer in enumerate(self.ex.observers):
                     if observer == self.observer_mapping[self.ex]:
                         matching = i
                 if matching is None:
@@ -418,22 +407,20 @@ class LabAssistant(object):
                                                    overwrite=run))
 
             # run the experiment
-            res = self.ex.run_command(run['command'], config_updates=run['config'])
-            
+            res = self.ex.run_command(run['command'],
+                                      config_updates=run['config'])
+
             # remove the extra observer
             self.ex.observers.pop()
             # and inject the default one
             if had_matching_observer:
                 self._inject_observer(self.ex)
             return res
-    
-    ########## Decorators ##########
+
+    # ############################## Decorators ###############################
 
     def searchspace(self, function):
-        """
-        Decorator for creating a searchspace definition
-        from a function.
-        """
+        """Decorator for creating a searchspace definition from a function."""
         space = build_searchspace(function)
         # validate the search space
         return self._verify_and_init_searchspace(space)
