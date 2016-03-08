@@ -1,13 +1,24 @@
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
+from pkg_resources import parse_version
+
+
+def parse_name_ver(name_version):
+    name, _, ver = name_version.partition('==')
+    return name, parse_version(ver)
+
 
 def check_dependencies(ex_dep, run_dep, version_policy):
-    from pkg_resources import parse_version
-    ex_dep = {name: parse_version(ver) for name, ver in ex_dep}
+    ex_dep = dict([parse_name_ver(name_version) for name_version in ex_dep])
     check_version = {
         'newer': lambda ex, name, b: name in ex and ex[name] >= b,
         'equal': lambda ex, name, b: name in ex and ex[name] == b,
         'exists': lambda ex, name, b: name in ex
     }[version_policy]
-    for name, ver in run_dep:
+    for name_version in run_dep:
+        name, ver = parse_name_ver(name_version)
         assert check_version(ex_dep, name, parse_version(ver)), \
             "{} mismatch: ex={}, run={}".format(name, ex_dep[name], ver)
 
