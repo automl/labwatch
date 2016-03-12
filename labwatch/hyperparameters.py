@@ -184,7 +184,7 @@ class UniformNumber(Parameter):
                 raise ParamValueExcept("log_scale only allowed for positive ranges")
             mmin = mtype(np.log(np.maximum(mmin, 1e-7)))
             mmax = mtype(np.log(mmax))
-        if isinstance(mtype, integer_types):
+        if mtype in integer_types:
             if self["log_scale"]:
                 return mtype(np.exp(np.random.randint(mmin, mmax)))
             else:
