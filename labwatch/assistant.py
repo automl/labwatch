@@ -12,9 +12,7 @@ import sacred.optional as opt
 from sacred.commandline_options import QueueOption
 from sacred.observers.mongo import MongoObserver, MongoDbOption
 from sacred.utils import create_basic_stream_logger
-from six import string_types
 
-from labwatch.commandline_options import AssistedOption
 from labwatch.optimizers import RandomSearch
 from labwatch.searchspace import SearchSpace, build_searchspace
 from labwatch.utils.types import InconsistentSpace
@@ -86,16 +84,12 @@ class LabAssistant(object):
             self.db_searchspace = None
             self.optimizer = None
         # remember for which experiments we have config hooks setup
-        self.have_hooks_for = set()
         self.observer_mapping = dict()
         # mark that we have newer looked for finished runs
         self.known_jobs = set()
         self.last_checked = None
         self.space_initialized = False
         self.search_space = None
-        # #### Experiment modifications #####
-        # first add a hook to the experiment
-        self._add_hook(self.ex)
         # then inject an observer if it is required
         if self.db is not None and self.always_inject_observer:
             self._inject_observer(self.ex)
@@ -176,46 +170,26 @@ class LabAssistant(object):
                 res[key] = config[key]
         return res
 
-    def _config_hook(self, orig_cfg, command_name, logger, args):
+    def _search_space_wrapper(self, fixed=None, fallback=None, preset=None):
+        # This function pretends to be a ConfigScope for a named_config
+        # but under the hood it is getting a suggestion from the optimizer
+
+        fixed = fixed or {}
+        final_config = dict(preset or {})
+        # the fallback parameter is needed to fit the interface of a
+        # ConfigScope, but here it is not supported.
+        assert not fallback, "{}".format(fallback)
         # ensure we have a search space definition
         if (not self.space_initialized) or (self.search_space is None):
-            raise ValueError("LabAssistant config_hook called but "
+            raise ValueError("LabAssistant search_space_wrapper called but "
                              "there is no search space definition")
         # if there was no database passed to the assistant
         # try to fetch one from the args
-        logger = logger.getChild('LabAssistant')
-        if self.db is None:
-            reinit_success = self._parse_db_from_args(args, logger)
-            if not reinit_success:
-                logger.warn("have no database! Using random search!")
-        # check for assisted flag in args
-        flag_string = "--" + AssistedOption.get_flag()[1]
-        assist_command = args.get(flag_string, False)
-        cfg = self.get_suggestion()
-        result_cfg = {}
-        if assist_command:
-            for key in cfg.keys():
-                if key in orig_cfg:
-                    result_cfg[key] = cfg[key]
-                else:
-                    # check if the key starts with an underscore
-                    # in which case it is safe for the default
-                    # not to contain it, otherwise we warn the user
-                    err = ("config value for {}, which LabAssistant wants to "
-                           "fill is not in the original config! "
-                           "This happens because your default config "
-                           "does not contain it")
-                    if isinstance(key, string_types) and key and key[0] != '_':
-                        logger.warn(err.format(key))
-                        result_cfg[key] = cfg[key] 
-        return result_cfg
+        final_config.update(self.get_suggestion())
+        final_config.update(fixed)
 
-    def _add_hook(self, ex):
-        def hook_closure(config, command_name, logger, args):
-            return self._config_hook(config, command_name, logger, args)
-        ex.config_hook(hook_closure)
-        self.have_hooks_for.add(ex)
-        
+        return final_config
+
     def _inject_observer(self, ex):
         if self.db is None:
             raise ValueError("LabAssistant has no database "
@@ -421,6 +395,10 @@ class LabAssistant(object):
 
     def searchspace(self, function):
         """Decorator for creating a searchspace definition from a function."""
+        if self.search_space is not None:
+            raise RuntimeError('Only one searchspace allowed per Assistant')
         space = build_searchspace(function)
         # validate the search space
-        return self._verify_and_init_searchspace(space)
+        self._verify_and_init_searchspace(space)
+        # add searchspace as named_config
+        self.ex._add_named_config(function.__name__, self._search_space_wrapper)
