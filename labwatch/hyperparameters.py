@@ -5,8 +5,8 @@ from __future__ import division, print_function, unicode_literals
 import numpy as np
 from six import integer_types
 
-from labwatch.utils.types import str_to_class, \
-    basic_types, types_to_str, str_to_types
+from labwatch.utils.types import (str_to_class, basic_types, types_to_str,
+                                  str_to_types, ParamInconsistent)
 from labwatch.utils.types import ParamValueExcept
 from labwatch.utils import FixedDict
 
@@ -293,7 +293,7 @@ class Gaussian(Parameter):
         mu = self["mu"]
         sigma = self["sigma"]
         if not (type == float):
-            raise ParamValueExcept("Parameter with normal distribution" \
+            raise ParamValueExcept("Parameter with normal distribution"
                                    " must be float!")
         if self["log_scale"]:
             return np.random.lognormal(mtype(mu), mtype(sigma))
@@ -301,7 +301,7 @@ class Gaussian(Parameter):
             return np.random.normal(mtype(mu), mtype(sigma))
 
     def valid(self, value):
-        return isinstance(value, (float, int, long))
+        return isinstance(value, (float,) + integer_types)
 
     @classmethod
     def decode(cls, storage):
