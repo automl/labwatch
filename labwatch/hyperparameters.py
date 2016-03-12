@@ -5,6 +5,7 @@ import copy
 import pprint
 
 from sacred.config import ConfigScope
+from six import integer_types
 
 from labwatch.utils.types import str_to_class, \
     basic_types, types_to_str, str_to_types
@@ -25,7 +26,7 @@ def decode_param_or_op(storage):
     """ decode method for converting BSON like dicts
         to parameter values.
     """
-    assert(storage.has_key("_class"))
+    assert("_class" in storage)
     cname = str_to_class(storage["_class"])
     res = cname.decode(storage)
     return res
@@ -183,7 +184,7 @@ class UniformNumber(Parameter):
                 raise ParamValueExcept("log_scale only allowed for positive ranges")
             mmin = mtype(np.log(np.maximum(mmin, 1e-7)))
             mmax = mtype(np.log(mmax))
-        if mtype in (int, long):
+        if isinstance(mtype, integer_types):
             if self["log_scale"]:
                 return mtype(np.exp(np.random.randint(mmin, mmax)))
             else:

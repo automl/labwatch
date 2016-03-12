@@ -83,7 +83,7 @@ def sacred_space_to_configspace(space):
         condition = param["condition"]
         condition_name = space.uids_to_names[condition["uid"]]
         converted_condition = None
-        if non_conditions.has_key(condition_name):            
+        if condition_name in non_conditions:
             converted_condition = non_conditions[condition_name]
         else:
             raise ValueError("Unknown parameter in Condition")

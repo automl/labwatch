@@ -13,6 +13,7 @@ db = c.labwatch_demo
 ex = Experiment('labwatch_simple_test')
 a = LabAssistant(db, ex)
 
+
 @ex.config
 def cfg():
   C = 1.0
@@ -23,7 +24,8 @@ def cfg():
 def search_space():
     C = UniformFloat(lower=0, upper=10, log_scale=True)
     gamma = UniformFloat(lower=0, upper=10)
-  
+
+
 @ex.automain
 def main(C, gamma):
     print(C)
