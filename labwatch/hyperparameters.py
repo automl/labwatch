@@ -1,10 +1,8 @@
-import sys
-import numpy as np
-import importlib
-import copy
-import pprint
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
 
-from sacred.config import ConfigScope
+import numpy as np
 from six import integer_types
 
 from labwatch.utils.types import str_to_class, \
@@ -14,6 +12,8 @@ from labwatch.utils import FixedDict
 
 # global parameter counting
 parameter_counter = 0
+
+
 def get_parameter_counter():
     global parameter_counter
     res = parameter_counter
@@ -26,25 +26,25 @@ def decode_param_or_op(storage):
     """ decode method for converting BSON like dicts
         to parameter values.
     """
-    assert("_class" in storage)
+    assert ("_class" in storage)
     cname = str_to_class(storage["_class"])
     res = cname.decode(storage)
     return res
+
 
 # parameters
 # a parameter is a dict that can have blocked/fixed values
 
 class Parameter(FixedDict):
-    
     def __init__(self, uid=None, fixed=None):
         if uid is None:
             uid = get_parameter_counter()
         if fixed is None:
-            fixed = {"uid" : uid}
+            fixed = {"uid": uid}
         else:
             fixed["uid"] = uid
-        super(Parameter, self).__init__(fixed = fixed)
-        
+        super(Parameter, self).__init__(fixed=fixed)
+
     def __or__(self, other):
         if not isinstance(other, Condition):
             err = "or operator | requires Condition() instance on right side"
@@ -61,7 +61,7 @@ class Parameter(FixedDict):
     def default(self):
         raise NotImplementedError("default() not implemented")
 
-    def valid(self):
+    def valid(self, value):
         raise NotImplementedError("valid() not implemented")
 
     def sample(self):
@@ -69,33 +69,36 @@ class Parameter(FixedDict):
 
     @classmethod
     def decode(cls, storage):
-        raise NotImplementedError("decode() not implemented for class {}".format(cls))
+        raise NotImplementedError(
+            "decode() not implemented for class {}".format(cls))
+
 
 class Constant(Parameter):
     def __init__(self, value, uid=None):
-        super(Constant, self).__init__(uid=uid, fixed = {"value" : value})
+        super(Constant, self).__init__(uid=uid, fixed={"value": value})
 
     def default(self):
         return self["value"]
-        
+
     def sample(self):
         return self.default()
 
     def valid(self, value):
         return self["value"] == value
-        
+
     @classmethod
     def decode(cls, storage):
         uid = storage["uid"]
         value = storage["value"]
         return cls(value, uid=uid)
 
+
 class Categorical(Parameter):
     def __init__(self, choices_in, uid=None):
         choices = []
         for choice in choices_in:
             if isinstance(choice, Constant):
-                self.choices.append(choice)
+                choices.append(choice)
             else:
                 if not isinstance(choice, basic_types):
                     err = "Choice parameter {} is not " \
@@ -103,16 +106,16 @@ class Categorical(Parameter):
                     raise ParamValueExcept(err.format(choice))
                 choices.append(choice)
         fixed = {
-            "choices" : choices
+            "choices": choices
         }
-        super(Categorical, self).__init__(uid=uid, fixed = fixed)
+        super(Categorical, self).__init__(uid=uid, fixed=fixed)
 
     def default(self):
         res = self["choices"][0]
         if isinstance(res, Constant):
             res = res.sample()
         return res
-        
+
     def sample(self):
         res = np.random.choice(self["choices"])
         if isinstance(res, Constant):
@@ -122,12 +125,12 @@ class Categorical(Parameter):
     def valid(self, value):
         any_valid = False
         for choice in self["choices"]:
-            if isinstance(choice, Constant):            
+            if isinstance(choice, Constant):
                 any_valid |= choice.valid(value)
             else:
                 any_valid |= (value == choice)
         return any_valid
-        
+
     @classmethod
     def decode(cls, storage):
         uid = storage["uid"]
@@ -143,9 +146,9 @@ class Categorical(Parameter):
                 choices.append(choice)
         return cls(choices, uid=uid)
 
-class UniformNumber(Parameter):
 
-    def __init__(self, 
+class UniformNumber(Parameter):
+    def __init__(self,
                  lower,
                  upper,
                  type,
@@ -158,30 +161,33 @@ class UniformNumber(Parameter):
             else:
                 default = (lower + upper) / 2.
         fixed = {
-            "lower" : type(lower),
-            "upper" : type(upper),
-            "type" : types_to_str[type],
-            "default" : type(default),
-            "log_scale" : log_scale
+            "lower": type(lower),
+            "upper": type(upper),
+            "type": types_to_str[type],
+            "default": type(default),
+            "log_scale": log_scale
         }
-        super(UniformNumber, self).__init__(uid = uid, fixed = fixed)
+        super(UniformNumber, self).__init__(uid=uid, fixed=fixed)
         if not (self["lower"] <= self["default"] <= self["upper"]):
-            err = "Default for {} is not between min and max".format(self["uid"])
+            err = "Default for {} is not between min and max".format(
+                self["uid"])
             raise ParamValueExcept(err)
         if self["upper"] <= self["lower"]:
-            err = "Upper bound {} is larger than lower bound {} for {} ".format(self["upper"], self["lower"], self["uid"])
+            err = "Upper bound {} is larger than lower bound {} for {} ".format(
+                self["upper"], self["lower"], self["uid"])
             raise ParamValueExcept(err)
 
     def default(self):
         return self["default"]
-        
+
     def sample(self):
         mtype = str_to_types[self["type"]]
         mmin = mtype(self["lower"])
         mmax = mtype(self["upper"])
         if self["log_scale"]:
             if mmin < 0. or mmax < 0.:
-                raise ParamValueExcept("log_scale only allowed for positive ranges")
+                raise ParamValueExcept(
+                    "log_scale only allowed for positive ranges")
             mmin = mtype(np.log(np.maximum(mmin, 1e-7)))
             mmax = mtype(np.log(mmax))
         if mtype in integer_types:
@@ -200,7 +206,7 @@ class UniformNumber(Parameter):
 
     def valid(self, value):
         return self["lower"] <= value <= self["upper"]
-    
+
     @classmethod
     def decode(cls, storage):
         uid = storage["uid"]
@@ -212,8 +218,9 @@ class UniformNumber(Parameter):
         return cls(lower, upper, type,
                    default, log_scale, uid)
 
+
 class UniformFloat(UniformNumber):
-    def __init__(self, 
+    def __init__(self,
                  lower,
                  upper,
                  default=None,
@@ -232,11 +239,12 @@ class UniformFloat(UniformNumber):
         upper = type(storage["upper"])
         default = type(storage["default"])
         log_scale = bool(storage["log_scale"])
-        return cls(lower, upper, 
+        return cls(lower, upper,
                    default, log_scale, uid)
-    
+
+
 class UniformInt(UniformNumber):
-    def __init__(self, 
+    def __init__(self,
                  lower,
                  upper,
                  default=None,
@@ -255,13 +263,14 @@ class UniformInt(UniformNumber):
         upper = type(storage["upper"])
         default = type(storage["default"])
         log_scale = bool(storage["log_scale"])
-        return cls(lower, upper, 
+        return cls(lower, upper,
                    default, log_scale, uid)
 
 
 class Gaussian(Parameter):
     """ A Gaussian just has a different distribution 
     """
+
     def __init__(self,
                  mu,
                  sigma,
@@ -269,16 +278,16 @@ class Gaussian(Parameter):
                  uid=None):
         type = float
         fixed = {
-            "mu" : type(mu),
-            "sigma" : type(sigma),
-            "type" : types_to_str[type],
-            "log_scale" : log_scale
+            "mu": type(mu),
+            "sigma": type(sigma),
+            "type": types_to_str[type],
+            "log_scale": log_scale
         }
-        super(Gaussian, self).__init__(uid=uid, fixed = fixed)
+        super(Gaussian, self).__init__(uid=uid, fixed=fixed)
 
     def default(self):
         return self["mu"]
-        
+
     def sample(self):
         mtype = str_to_types[self["type"]]
         mu = self["mu"]
@@ -293,7 +302,7 @@ class Gaussian(Parameter):
 
     def valid(self, value):
         return isinstance(value, (float, int, long))
-    
+
     @classmethod
     def decode(cls, storage):
         uid = storage["uid"]
@@ -301,16 +310,16 @@ class Gaussian(Parameter):
         mu = type(storage["mu"])
         sigma = type(storage["sigma"])
         log_scale = bool(storage["log_scale"])
-        return cls(mu, sigma, log_scale, uid=uid)    
+        return cls(mu, sigma, log_scale, uid=uid)
+
 
 class ConditionResult(Parameter):
-
     def __init__(self, result, condition):
-        assert(isinstance(condition, Condition))
+        assert (isinstance(condition, Condition))
         uid = result["uid"]
-        fixed = { "condition" : condition,
-                  "result" : result
-        }
+        fixed = {"condition": condition,
+                 "result": result
+                 }
         super(ConditionResult, self).__init__(uid=uid, fixed=fixed)
 
     def default(self, condition_res):
@@ -319,7 +328,7 @@ class ConditionResult(Parameter):
             return self["result"].default()
         else:
             return None
-        
+
     def sample(self, condition_res):
         condition_true = self["condition"].sample(condition_res)
         if condition_true:
@@ -336,15 +345,16 @@ class ConditionResult(Parameter):
         result = decode_param_or_op(storage["result"])
         return cls(result, condition)
 
+
 # parameter operations
 class ParameterOperation(FixedDict):
     pass
-    
+
+
 class Condition(ParameterOperation):
-    
     def __init__(self, param, choices):
-        assert(isinstance(param, (Categorical, int)))
-        assert(isinstance(choices, list))
+        assert (isinstance(param, (Categorical, int)))
+        assert (isinstance(choices, list))
         if isinstance(param, str):
             uid = param
         elif isinstance(param, int):
@@ -352,11 +362,11 @@ class Condition(ParameterOperation):
         else:
             uid = param["uid"]
         fixed = {
-            "uid" : uid,
-            "choices" : choices
+            "uid": uid,
+            "choices": choices
         }
         super(Condition, self).__init__(fixed=fixed)
-        
+
     def sample(self, cres):
         for choice in self["choices"]:
             if isinstance(choice, Constant):

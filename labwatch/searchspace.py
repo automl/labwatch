@@ -1,14 +1,14 @@
-import sys
-import numpy as np
-import importlib
-import copy
-import pprint
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
 
 from sacred.config import ConfigScope
 
 from labwatch.utils import FixedDict
 from labwatch.hyperparameters import Parameter, ConditionResult
 from labwatch.hyperparameters import decode_param_or_op
+from labwatch.utils.types import InconsistentSpace, ParamValueExcept
+
 
 class SearchSpace(FixedDict):
 
@@ -16,14 +16,14 @@ class SearchSpace(FixedDict):
         params = []
         fixed = {}
         self.uids_to_names = {}
-        for key,value in storage.items():
+        for key, value in storage.items():
             if isinstance(value, dict) and ("_class" in value):
                 param = decode_param_or_op(value)
                 params.append(param)
                 self.uids_to_names[param["uid"]] = key
             else:
                 fixed[key] = value
-                
+
         super(SearchSpace, self).__init__(fixed=fixed)
         self.contains_conditions = False
         self.conditions = []
@@ -80,7 +80,7 @@ class SearchSpace(FixedDict):
         # allocate result dict
         res = {}
         # first add all fixed parameters
-        #for pname in self.fixed:
+        # for pname in self.fixed:
         #    res[pname] = self[pname]
         # second sample all non conditions
         considered_params = set()
@@ -122,7 +122,8 @@ class SearchSpace(FixedDict):
     def default(self, max_iters_till_cycle=50):
         return self.sample(max_iters_till_cycle, strategy="default")
 
-#decorator
+
+# decorator
 def build_searchspace(function):
     # abuse configscope to parse searchspace definitions
     scope = ConfigScope(function)
@@ -130,4 +131,3 @@ def build_searchspace(function):
     # parse generic dict to a search space
     space = SearchSpace(space_dict)
     return space
-    
