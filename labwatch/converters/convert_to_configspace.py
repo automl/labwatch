@@ -73,11 +73,11 @@ def sacred_space_to_configspace(space):
     non_conditions = {}
     conditions = []
     for name in space.non_conditions:
-        param = space[name]
+        param = space.parameters[name]
         converted_param = convert_simple_param(name, param)
         non_conditions[name] = converted_param
     for name in space.conditions:
-        param = space[name]
+        param = space.parameters[name]
         converted_result = convert_simple_param(name, param["result"])
         # next build the condition as required by the ConfigSpace
         condition = param["condition"]

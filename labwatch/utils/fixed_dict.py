@@ -13,6 +13,8 @@ def warn_not_allowed(self, key):
 
 class FixedDict(dict):
     def __init__(self, fixed=None):
+        if fixed is None:
+            fixed = {}
         super(FixedDict, self).__init__()
         for key in fixed.keys():
             dict.__setitem__(self, key, fixed[key])

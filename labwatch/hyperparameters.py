@@ -26,7 +26,8 @@ def decode_param_or_op(storage):
     """ decode method for converting BSON like dicts
         to parameter values.
     """
-    assert ("_class" in storage)
+    if "_class" not in storage:
+        raise ValueError('Not a valid hyperparameter')
     cname = str_to_class(storage["_class"])
     res = cname.decode(storage)
     return res
@@ -71,6 +72,17 @@ class Parameter(FixedDict):
     def decode(cls, storage):
         raise NotImplementedError(
             "decode() not implemented for class {}".format(cls))
+
+    def __eq__(self, other):
+        if not isinstance(other, Parameter):
+            return False
+        else:
+            eq = self['uid'] == other['uid']
+            assert not eq or (self['_class'] == other['_class'])
+            return eq
+
+    def __hash__(self):
+        return self['uid']
 
 
 class Constant(Parameter):
@@ -250,7 +262,7 @@ class UniformInt(UniformNumber):
                  default=None,
                  log_scale=False,
                  uid=None):
-        super(UniformFloat, self).__init__(lower, upper, int,
+        super(UniformInt, self).__init__(lower, upper, int,
                                            default=default,
                                            log_scale=log_scale,
                                            uid=uid)

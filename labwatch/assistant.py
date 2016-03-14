@@ -34,7 +34,7 @@ class SearchSpaceManipulator(SONManipulator):
     def transform_outgoing(self, son, collection):
         if "_class" in son.keys():
             if son["_class"] == "SearchSpace":
-                return SearchSpace(son)
+                return SearchSpace.from_json(son)
         else:
             for (key, value) in son.items():
                 if isinstance(value, dict):
@@ -134,9 +134,9 @@ class LabAssistant(object):
             if space_from_ex is not None:
                 # if this search space has no id we set it to
                 # the one from the database before comparing
-                if "_id" not in space_from_ex:
-                    space_from_ex["_id"] = space_from_db["_id"]
-                if space_from_db != space_from_ex:
+                if "_id" not in space_from_ex.search_space:
+                    space_from_ex.search_space["_id"] = space_from_db.search_space["_id"]
+                if space_from_db.to_json() != space_from_ex.to_json():
                     raise InconsistentSpace("The search space of your "
                                             "experiment is incompatible with "
                                             "the one stored in the database! "
@@ -145,9 +145,9 @@ class LabAssistant(object):
             if space_from_ex is None:
                 raise RuntimeError("You provided no search space and no "
                                    "space is saved in the database!")
-            sp_id = self.db_searchspace.insert(space_from_ex)
+            sp_id = self.db_searchspace.insert(space_from_ex.to_json())
             space_from_db = self.db_searchspace.find_one({"_id": sp_id})
-        self.space_id = space_from_db["_id"]
+        self.space_id = space_from_db.search_space["_id"]
         self.optimizer = None
         if self.optimizer_class is not None:
             self.optimizer = self.optimizer_class(space_from_db)

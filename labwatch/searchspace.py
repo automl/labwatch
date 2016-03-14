@@ -2,69 +2,72 @@
 # coding=utf-8
 from __future__ import division, print_function, unicode_literals
 
-from sacred.config import ConfigScope
+import re
 
+from sacred.config import ConfigScope
+from sacred.utils import join_paths
 from labwatch.utils import FixedDict
 from labwatch.hyperparameters import Parameter, ConditionResult
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.utils.types import InconsistentSpace, ParamValueExcept
 
 
-class SearchSpace(FixedDict):
+class SearchSpace(object):
 
-    def __init__(self, storage):
-        params = []
-        fixed = {}
-        self.uids_to_names = {}
-        for key, value in storage.items():
-            if isinstance(value, dict) and ("_class" in value):
-                param = decode_param_or_op(value)
-                params.append(param)
-                self.uids_to_names[param["uid"]] = key
-            else:
-                fixed[key] = value
-
-        super(SearchSpace, self).__init__(fixed=fixed)
-        self.contains_conditions = False
+    def __init__(self, search_space):
+        super(SearchSpace, self).__init__()
+        self.search_space = search_space
+        parameters = collect_hyperparameters(search_space)
+        params = sorted(parameters.values(), key=lambda x: x['uid'])
+        self.uids_to_names = {param["uid"]: param['name'] for param in params}
         self.conditions = []
         self.non_conditions = []
-        # first simply insert all and kick non unique names
-        already_seen = set()
+        self.parameters = {}
+        # first simply insert all
         for param in params:
             assert(isinstance(param, Parameter))
-            self.contains_conditions &= isinstance(param,
-                                                   ConditionResult)
-            if param["uid"] in already_seen:
-                err = "multiple definitions of {} " \
-                      "in search-space, using first definition!"
-                print(err.format(param["uid"]))
+            self.parameters[param['name']] = param
+            if isinstance(param, ConditionResult):
+                self.conditions.append(param["name"])
             else:
-                self[self.uids_to_names[param["uid"]]] = param
-                if isinstance(param, ConditionResult):
-                    self.conditions.append(self.uids_to_names[param["uid"]])
-                else:
-                    self.non_conditions.append(self.uids_to_names[param["uid"]])
-                already_seen.add(param["uid"])
+                self.non_conditions.append(param["name"])
+
+        self.contains_conditions = len(self.conditions) > 0
+        self.validate_conditions()
+
+    def to_json(self):
+        son = dict(self.search_space)
+        son['_class'] = 'SearchSpace'
+        return son
+
+    @classmethod
+    def from_json(cls, son):
+        assert son['_class'] == 'SearchSpace'
+        del son['_class']
+        return SearchSpace(son)
+
+
+    def validate_conditions(self):
         for pname in self.conditions:
-            cparam = self[pname]
+            cparam = self.parameters[pname]
             conditioned_on = cparam["condition"]["uid"]
-            if not (conditioned_on in already_seen):
+            if not (conditioned_on in self.uids_to_names):
                 err = "Conditional parameter: {} depends on: {} " \
                       "which does not exist in the defined SearchSpace!"
                 raise InconsistentSpace(err.format(pname, conditioned_on))
 
     def is_valid_name(self, name):
         return name in self.uids_to_names.values()
-        
+
     def valid(self, config):
         # TODO check this again for consistency
         valid = True
         for pname in self.non_conditions:
-            valid &= self[pname].valid(config[pname])
+            valid &= self.parameters[pname].valid(config[pname])
         if not valid:
             return False
         for pname in self.conditions:
-            cparam = self[pname]
+            cparam = self.parameters[pname]
             conditioned_on = cparam["condition"]["uid"]
             if cparam in config.keys():
                 if conditioned_on in self.uids_to_names.keys():
@@ -86,9 +89,9 @@ class SearchSpace(FixedDict):
         considered_params = set()
         for pname in self.non_conditions:
             if strategy == "random":
-                res[pname] = self[pname].sample()
+                res[pname] = self.parameters[pname].sample()
             else:
-                res[pname] = self[pname].default()
+                res[pname] = self.parameters[pname].default()
             considered_params.add(pname)
         # then the conditional parameters
         remaining_params = set(self.conditions)
@@ -96,13 +99,13 @@ class SearchSpace(FixedDict):
         while remaining_params:
             for pname in self.conditions:
                 if pname in remaining_params:
-                    cparam = self[pname]
+                    cparam = self.parameters[pname]
                     conditioned_on = self.uids_to_names[cparam["condition"]["uid"]]
                     if conditioned_on in res.keys():
                         if strategy == "random":
-                            cres = self[pname].sample(res[conditioned_on])
+                            cres = self.parameters[pname].sample(res[conditioned_on])
                         else:
-                            cres = self[pname].default(res[conditioned_on])
+                            cres = self.parameters[pname].default(res[conditioned_on])
                         if cres:
                             res[pname] = cres
                         considered_params.add(pname)
@@ -127,7 +130,147 @@ class SearchSpace(FixedDict):
 def build_searchspace(function):
     # abuse configscope to parse searchspace definitions
     scope = ConfigScope(function)
-    space_dict = scope()
+    space_dict = dict(scope())
+
     # parse generic dict to a search space
     space = SearchSpace(space_dict)
     return space
+
+
+def set_name(hparam, name):
+    if ('name' not in hparam or
+            len(hparam['name']) > len(name) or
+            hparam['name'] > name):
+        hparam['name'] = name
+
+
+def merge_parameters(params, new_params):
+    for k, v in new_params.items():
+        if k not in params:
+            params[k] = v
+        else:
+            set_name(params[k], v['name'])
+    return params
+
+
+def collect_hyperparameters(search_space, path=''):
+    """
+    Recursively collect all the hyperparameters from a search space.
+
+    Parameters
+    ----------
+    search_space : dict
+        A JSON-like structure that describes the search space.
+    path : str
+        The path to the current entry. Used to determine the name of the
+        detected hyperparameters. Optional: Only used for the recursion.
+
+    Returns
+    -------
+    parameters : dict
+        A dictionary that to all the collected hyperparameters from their uids.
+    """
+    # First try to decode to hyperparameter
+    if isinstance(search_space, dict):
+        try:
+            hparam = decode_param_or_op(search_space)
+            set_name(hparam, path)
+            return {hparam['uid']: hparam}
+        except ValueError:
+            pass
+
+    parameters = {}
+    # if the space is a dict (but not a hyperparameter) we parse it recursively
+    if isinstance(search_space, dict):
+        for k, v in search_space.items():
+            # add the current key and a '.' as prefix when recursing
+            sub_params = collect_hyperparameters(v, join_paths(path, k))
+            parameters = merge_parameters(parameters, sub_params)
+        return parameters
+
+    # if the space is a list we iterate it recursively
+    elif isinstance(search_space, (tuple, list)):
+        for i, v in enumerate(search_space):
+            # add '[N]' to the name when recursing
+            sub_params = collect_hyperparameters(v, path + '[{}]'.format(i))
+            parameters = merge_parameters(parameters, sub_params)
+        return parameters
+    else:
+        # if the space is anything else do nothing
+        return parameters
+
+
+def fill_in_values(search_space, values):
+    """
+    Recursively insert given values into a search space to receive a config.
+
+    Parameters
+    ----------
+    search_space : dict
+        A JSON-like structure that describes the search space.
+    values : dict
+        A dictionary mapping uids to values.
+
+    Returns
+    -------
+    dict
+        A configuration that results from replacing hyperparameters by the
+        corresponding values.
+
+    """
+    if isinstance(search_space, dict):
+        if '_class' in search_space and 'uid' in search_space:
+            return values[search_space['uid']]
+        else:
+            return {k: fill_in_values(v, values)
+                    for k, v in search_space.items()}
+    elif isinstance(search_space, (list, tuple)):
+        config = [fill_in_values(v, values) for v in search_space]
+        return type(search_space)(config)
+    else:
+        return search_space
+
+
+def get_by_path(config, path):
+    """
+    Get a config-entry by its dotted and indexed name.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration dictionary to get the values from.
+    path : str
+        The config entry corresponding to the given path.
+    Returns
+    -------
+    object
+        The configuration entry that corresponds to the given path.
+
+    """
+    current = config
+    for p in filter(None, re.split('[.\[\]]', path)):
+        try:
+            p = int(p)
+        except ValueError:
+            pass
+        current = current[p]
+    return current
+
+
+def get_values_from_config(config, hyperparams):
+    """
+    Infer the values of hyperparameters from a given configuration.
+    Parameters
+    ----------
+    config : dict
+        A JSON configuration that has to correspond to the search space.
+    hyperparams : dict
+        A dictionary that maps uids to hyperparameters.
+
+    Returns
+    -------
+    dict
+        A dictionary mapping uids to values.
+    """
+    return {uid: get_by_path(config, hparam['name'])
+            for uid, hparam in hyperparams.items()}
