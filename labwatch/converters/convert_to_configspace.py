@@ -112,9 +112,9 @@ def sacred_space_to_configspace(space):
 
 def sacred_config_to_configspace(cspace, config):
     if isinstance(cspace, SearchSpace):
-        raise ValueError("You called sacred_config_to_configspace " \
-                         "with an instance of labwatch.SearchSpace " \
-                         "but an instance of ConfigSpace.ConfigurationSpace " \
+        raise ValueError("You called sacred_config_to_configspace "
+                         "with an instance of labwatch.SearchSpace "
+                         "but an instance of ConfigSpace.ConfigurationSpace "
                          "is required. Use sacred_space_to_configspace().")
     return Configuration(cspace, values=config)
 

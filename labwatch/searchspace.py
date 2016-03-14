@@ -200,7 +200,7 @@ def collect_hyperparameters(search_space, path=''):
         return parameters
 
 
-def fill_in_values(search_space, values):
+def fill_in_values(search_space, values, fill_by='uid'):
     """
     Recursively insert given values into a search space to receive a config.
 
@@ -219,13 +219,13 @@ def fill_in_values(search_space, values):
 
     """
     if isinstance(search_space, dict):
-        if '_class' in search_space and 'uid' in search_space:
-            return values[search_space['uid']]
+        if '_class' in search_space and fill_by in search_space:
+            return values[search_space[fill_by]]
         else:
-            return {k: fill_in_values(v, values)
+            return {k: fill_in_values(v, values, fill_by)
                     for k, v in search_space.items()}
     elif isinstance(search_space, (list, tuple)):
-        config = [fill_in_values(v, values) for v in search_space]
+        config = [fill_in_values(v, values, fill_by) for v in search_space]
         return type(search_space)(config)
     else:
         return search_space
@@ -270,7 +270,7 @@ def get_values_from_config(config, hyperparams):
     Returns
     -------
     dict
-        A dictionary mapping uids to values.
+        A dictionary mapping names to values.
     """
-    return {uid: get_by_path(config, hparam['name'])
+    return {hparam['name']: get_by_path(config, hparam['name'])
             for uid, hparam in hyperparams.items()}

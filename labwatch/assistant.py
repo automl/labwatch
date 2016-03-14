@@ -14,7 +14,8 @@ from sacred.observers.mongo import MongoObserver, MongoDbOption
 from sacred.utils import create_basic_stream_logger
 
 from labwatch.optimizers import RandomSearch
-from labwatch.searchspace import SearchSpace, build_searchspace
+from labwatch.searchspace import SearchSpace, build_searchspace, fill_in_values, \
+    get_values_from_config
 from labwatch.utils.types import InconsistentSpace
 from labwatch.utils.version_checks import (check_dependencies, check_sources,
                                            check_names)
@@ -161,14 +162,8 @@ class LabAssistant(object):
         return self.search_space
 
     def _clean_config(self, config):
-        res = {}
-        for key in config.keys():
-            if not self.search_space.is_valid_name(key):
-                # ignore this key as it is not part of the searchspace
-                continue
-            else:
-                res[key] = config[key]
-        return res
+        values = get_values_from_config(config, self.search_space.parameters)
+        return values
 
     def _search_space_wrapper(self, fixed=None, fallback=None, preset=None):
         # This function pretends to be a ConfigScope for a named_config
@@ -185,7 +180,12 @@ class LabAssistant(object):
                              "there is no search space definition")
         # if there was no database passed to the assistant
         # try to fetch one from the args
-        final_config.update(self.get_suggestion())
+        values = self.get_suggestion()
+        config = fill_in_values(self.search_space.search_space, values,
+                                fill_by='uid')
+        del config['_id']
+
+        final_config.update(config)
         final_config.update(fixed)
 
         return final_config
@@ -302,7 +302,10 @@ class LabAssistant(object):
                              "without a defined search space")
         if self.optimizer.needs_updates():
             self.update_optimizer()
-        return self.optimizer.suggest_configuration()
+
+        suggestion = self.optimizer.suggest_configuration()
+        values = {self.search_space.parameters[k]['uid']: v for k, v in suggestion.items() if k in self.search_space.parameters}
+        return values
 
     def get_current_best(self, return_job_info=False):
         if self.db is None:
