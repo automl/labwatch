@@ -1,4 +1,5 @@
 import importlib
+from six import integer_types, string_types
 
 
 def str_to_class(cls_str):
@@ -14,17 +15,21 @@ def fullname(o):
     return o.__class__.__name__
 
 types_to_str = {
-    float : "float",
-    int   : "int",
-    # long  : "long",  # FIXME: doesn't exist in python 3 anymore (remove?)
-    str   : "str"
+    float: "float",
+    int: "int",
+    str: "str"
 }
 
+for t in integer_types:
+    types_to_str[t] = 'int'
+for t in string_types:
+    types_to_str[t] = 'str'
+
+
 str_to_types = {
-    "float" : float,
-    "int"   : int,
-    # "long"  : long, # FIXME: doesn't exist in python 3 anymore (remove?)
-    "str"   : str
+    "float": float,
+    "int": int,
+    "str": str
 }
 
 basic_types = tuple(types_to_str.keys())
