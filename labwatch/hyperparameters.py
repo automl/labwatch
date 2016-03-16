@@ -160,12 +160,7 @@ class Categorical(Parameter):
 
 
 class UniformNumber(Parameter):
-    def __init__(self,
-                 lower,
-                 upper,
-                 type,
-                 default=None,
-                 log_scale=False,
+    def __init__(self, lower, upper, type, default=None, log_scale=False,
                  uid=None):
         if default is None:
             if log_scale:
@@ -194,27 +189,23 @@ class UniformNumber(Parameter):
 
     def sample(self):
         mtype = str_to_types[self["type"]]
+        if mtype not in [int, float]:
+            err = "Invalid type: {} for UniformNumber"
+            raise ParamValueExcept(err.format(mtype))
+
         mmin = mtype(self["lower"])
         mmax = mtype(self["upper"])
         if self["log_scale"]:
             if mmin < 0. or mmax < 0.:
                 raise ParamValueExcept(
                     "log_scale only allowed for positive ranges")
-            mmin = mtype(np.log(np.maximum(mmin, 1e-7)))
-            mmax = mtype(np.log(mmax))
-        if mtype in integer_types:
-            if self["log_scale"]:
-                return mtype(np.exp(np.random.randint(mmin, mmax)))
-            else:
-                return np.random.randint(mmin, mmax)
-        elif mtype == float:
-            if self["log_scale"]:
-                return mtype(np.exp(np.random.uniform(mmin, mmax)))
-            else:
-                return np.random.uniform(mmin, mmax)
-        else:
-            err = "Invalid type: {} for UniformNumber"
-            raise ParamValueExcept(err.format(mtype))
+            mmin = np.log(np.maximum(mmin, 1e-7))
+            mmax = np.log(mmax)
+
+        nr = np.random.uniform(mmin, mmax)
+        if self['log_scale']:
+            nr = np.exp(nr)
+        return mtype(nr)
 
     def valid(self, value):
         return self["lower"] <= value <= self["upper"]
@@ -263,9 +254,9 @@ class UniformInt(UniformNumber):
                  log_scale=False,
                  uid=None):
         super(UniformInt, self).__init__(lower, upper, int,
-                                           default=default,
-                                           log_scale=log_scale,
-                                           uid=uid)
+                                         default=default,
+                                         log_scale=log_scale,
+                                         uid=uid)
 
     @classmethod
     def decode(cls, storage):
