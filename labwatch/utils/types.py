@@ -41,3 +41,7 @@ class ParamValueExcept(Exception):
 
 class InconsistentSpace(Exception):
     pass
+
+
+class ParamInconsistent(Exception):
+    pass
