@@ -38,8 +38,10 @@ basic_types = tuple(types_to_str.keys())
 class ParamValueExcept(Exception):
     pass
 
+
 class InconsistentSpace(Exception):
     pass
+
 
 class ParamInconsistent(Exception):
     pass

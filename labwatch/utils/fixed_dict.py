@@ -1,12 +1,20 @@
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
 from labwatch.utils.types import fullname
+
 
 def warn_not_allowed(self, key):
     warning = "WARNING: you tried to set key {}" \
               " for class {} which is among the fixed keys!"
     print(warning.format(key, fullname(self)))
 
+
 class FixedDict(dict):
     def __init__(self, fixed=None):
+        if fixed is None:
+            fixed = {}
         super(FixedDict, self).__init__()
         for key in fixed.keys():
             dict.__setitem__(self, key, fixed[key])
