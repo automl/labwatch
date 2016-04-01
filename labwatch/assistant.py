@@ -70,6 +70,7 @@ class LabAssistant(object):
                  optimizer=None,
                  prefix='default',
                  always_inject_observer=False):
+
         self.db = database
         self.ex = experiment
         self.ex.logger = create_basic_stream_logger()
