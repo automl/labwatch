@@ -43,23 +43,33 @@ class LabwatchScenario(Scenario):
         self.test_inst = []
         self.feature_dict = {}
         self.feature_array = None
+        self.instance_specific = None
+        self.n_features = 0
 
         # save reference to config_space
         self.cs = config_space
-
+        
+        # We do not need a TAE Runner as this is done by the Sacred Experiment
+        self.tae_runner = None
+        self.deterministic = False
 
 class SMAC3(object):
 
-    def __init__(self, config_space):
+    def __init__(self, config_space, seed=None):
+        
+        if seed is None:
+            self.seed = np.random.randint(0, 10000)
+        else:
+            self.seed = seed
 
         self.sacred_space = config_space
         self.config_space = sacred_space_to_configspace(config_space)
         self.scenario = LabwatchScenario(self.config_space, None)
         self.run_history = RunHistory()
-        self.smac = SMBO(self.scenario, np.random.get_state())
+        self.smac = SMBO(self.scenario, np.random.RandomState(seed))
         self.num_params = len(self.config_space.get_hyperparameters())
-        self.rh2EPM = RunHistory2EPM(num_params=self.num_params,
-                                     cutoff_time=1e7,
+        self.rh2EPM = RunHistory2EPM(scenario=self.scenario,
+                                     num_params=self.num_params,
                                      success_states=None,
                                      impute_censored_data=False,
                                      impute_state=None)
@@ -71,10 +81,11 @@ class SMAC3(object):
             # Alternatively we could evaluate the default
             # but that might be dangerous if we run multiple
             # workers in parallel
-            return self.sacred_space.sample()              
-        X_cfg, Y_cfg = self.rh2EPM.transform(self.run_history)
+            return self.sacred_space.sample()
 
-        next_config = self.smac.choose_next(X_cfg, Y_cfg)
+        X_cfg, Y_cfg = self.rh2EPM.transform(self.run_history)
+        
+        next_config = self.smac.choose_next(X_cfg, Y_cfg)[0]
 
         result = configspace_config_to_sacred(next_config)
 
