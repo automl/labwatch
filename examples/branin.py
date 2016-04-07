@@ -31,4 +31,5 @@ def branin_cost(x):
     print("{:.2f}, {:.2f}".format(x1, x2))
     y = (x2 - (5.1 / (4 * np.pi ** 2)) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
     y += 10 * (1 - 1 / (8 * np.pi)) * np.cos(x1) + 10
+
     return y
