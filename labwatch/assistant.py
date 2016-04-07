@@ -4,6 +4,7 @@ from __future__ import division, print_function, unicode_literals
 
 from datetime import datetime
 import time
+import numbers
 
 import gridfs
 import pymongo
@@ -273,6 +274,21 @@ class LabAssistant(object):
                     # which will not return the modified_count flag
                     break  # we've successfully acquired a run
         return run
+
+    def _convert_result(self, result):
+        if isinstance(result, dict):
+            if "optimization_target" not in result:
+                raise ValueError("The result of your experiment is a dict without "
+                                 "the key optimization_target, which is required "
+                                 "by labwatch")
+            else:
+                return result["optimization_target"]
+        elif not isinstance(result, numbers.Number):
+            raise ValueError("The result of your experiment is a {} " 
+                             "but labwatch expects either a number "
+                             "or a dict".format(type(result)))
+        else:
+            return result
         
     # ########################## exported functions ###########################
 
@@ -309,8 +325,8 @@ class LabAssistant(object):
         # update the last checked to the oldest one that is still running
         self.last_checked = datetime.now()
         # collect all configs and their results
-        info = [(self._clean_config(job["config"]), job["result"], job)
-                for job in completed_jobs if job["_id"] not in self.known_jobs]
+        info = [(self._clean_config(job["config"]), self._convert_result(job["result"]), job)
+                for job in completed_jobs if job["_id"] not in self.known_jobs]        
         if len(info) > 0:
             configs, results, jobs = (list(x) for x in zip(*info))
             for job in jobs:
@@ -319,8 +335,14 @@ class LabAssistant(object):
             # the optimizer might modify the additional info of jobs
             if modifications is not None:
                 for job in modifications:
-                    # TODO apply these modifications 
-                    pass
+                    new_info = job.info
+                    self.runs.update_one({
+                        '_id': job["_id"]
+                    },{
+                        '$set': {
+                            'info': new_info
+                        }
+                    }, upsert=False)
 
     def get_suggestion(self):
         if (not self.space_initialized) or (self.search_space is None):

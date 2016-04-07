@@ -80,17 +80,17 @@ class SMAC3(object):
 
         return result
 
-    def update(self, configs, costs, run_infos):
+    def update(self, configs, costs, runs):
         converted_configs = [sacred_config_to_configspace(self.config_space, config)
                              for config in configs]
-        for (config, cost, info) in zip(converted_configs, costs, run_infos):
+        for (config, cost, run) in zip(converted_configs, costs, runs):
             # JTS fetch duration, status and seed from the job data
-            duration = (info["stop_time"] - info["start_time"]).total_seconds()
-            if info["status"] == "COMPLETED":
+            duration = (run["stop_time"] - run["start_time"]).total_seconds()
+            if run["status"] == "COMPLETED":
                 status = StatusType.SUCCESS
             else:
                 status = StatusType.CRASHED            
-            seed = info["config"]["seed"]
+            seed = run["config"]["seed"]
             self.run_history.add(config=config, cost=cost,
                                  time=duration, status=status,
                                  instance_id=0, seed=seed)

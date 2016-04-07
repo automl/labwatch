@@ -90,11 +90,11 @@ class RoBO(object):
 
         return result
 
-    def update(self, configs, costs, run_infos):
+    def update(self, configs, costs, runs):
         converted_configs = [sacred_config_to_configspace(self.config_space, config)
                              for config in configs]
 
-        for (config, cost, info) in zip(converted_configs, costs, run_infos):
+        for (config, cost, run) in zip(converted_configs, costs, runs):
             # Maps configuration to [0, 1]^D space
             x = config.get_array()
 
