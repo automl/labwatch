@@ -91,7 +91,6 @@ class LabAssistant(object):
         # mark that we have newer looked for finished runs
         self.known_jobs = set()
         self.last_checked = None
-        self.space_initialized = False
         self.search_space = None
         # then inject an observer if it is required
         if self.db is not None and self.always_inject_observer:
@@ -126,38 +125,33 @@ class LabAssistant(object):
         return False
 
     def _verify_and_init_searchspace(self, space_from_ex):
-        # try to figure out if a searchspace is defined in the database
-        if self.db is None:
-            self.space_initialized = True
-            self.search_space = space_from_ex
-            self.optimizer = RandomSearch(self.search_space)
-            return self.search_space
-        space_from_db = self.db_searchspace.find_one()
-        if space_from_db is not None:
-            if space_from_ex is not None:
-                # if this search space has no id we set it to
-                # the one from the database before comparing
-                if "_id" not in space_from_ex.search_space:
-                    space_from_ex.search_space["_id"] = space_from_db.search_space["_id"]
-                if space_from_db.to_json() != space_from_ex.to_json():
-                    raise InconsistentSpace("The search space of your "
-                                            "experiment is incompatible with "
-                                            "the one stored in the database! "
-                                            "Use new_space=True if it changed")
-        else:
+        # get searchspace from database or from experiment
+        self.search_space = self.db_searchspace.find_one() if self.db else None
+        if self.search_space is None:
             if space_from_ex is None:
-                raise RuntimeError("You provided no search space and no "
-                                   "space is saved in the database!")
+                raise RuntimeError("You provided no search space and no space "
+                                   "is saved in the database!")
+
             sp_id = self.db_searchspace.insert(space_from_ex.to_json())
-            space_from_db = self.db_searchspace.find_one({"_id": sp_id})
-        self.space_id = space_from_db.search_space["_id"]
-        self.optimizer = None
+            self.search_space = self.db_searchspace.find_one({"_id": sp_id})
+        assert self.search_space is not None
+
+        # Check for consistency
+        if space_from_ex and not self.search_space == space_from_ex:
+            raise InconsistentSpace(
+                "The search space of your experiment is incompatible with the "
+                "one stored in the database! Use new_space=True if it changed")
+
+        # Create the optimizer
         if self.optimizer_class is not None:
-            self.optimizer = self.optimizer_class(space_from_db)
+            if not self.db:
+                import warnings
+                warnings.warn('No database. Falling back to random search')
+                self.optimizer = RandomSearch(self.search_space)
+            self.optimizer = self.optimizer_class(self.search_space)
         else:
-            self.optimizer = RandomSearch(space_from_db)
-        self.space_initialized = True
-        self.search_space = space_from_db
+            self.optimizer = RandomSearch(self.search_space)
+
         # update the optimizer 
         if self.optimizer.needs_updates():
             self.update_optimizer()
@@ -177,7 +171,7 @@ class LabAssistant(object):
         # ConfigScope, but here it is not supported.
         assert not fallback, "{}".format(fallback)
         # ensure we have a search space definition
-        if (not self.space_initialized) or (self.search_space is None):
+        if self.search_space is None:
             raise ValueError("LabAssistant search_space_wrapper called but "
                              "there is no search space definition")
         # if there was no database passed to the assistant
@@ -320,7 +314,7 @@ class LabAssistant(object):
                     }, upsert=False)
 
     def get_suggestion(self):
-        if (not self.space_initialized) or (self.search_space is None):
+        if self.search_space is None:
             raise ValueError("LabAssistant sample_suggestion called "
                              "without a defined search space")
         if self.optimizer.needs_updates():
