@@ -1,4 +1,7 @@
-import logging
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
 import numpy as np
 
 from smac.smbo.smbo import SMBO
@@ -7,9 +10,10 @@ from smac.tae.execute_ta_run import StatusType
 from smac.runhistory.runhistory import RunHistory
 from smac.runhistory.runhistory2epm import RunHistory2EPM
 
-from labwatch.converters.convert_to_configspace import sacred_space_to_configspace
-from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
-from labwatch.converters.convert_to_configspace import configspace_config_to_sacred
+from labwatch.optimizers.base import Optimizer
+from labwatch.converters.convert_to_configspace import (
+    sacred_space_to_configspace, sacred_config_to_configspace,
+    configspace_config_to_sacred)
 
 
 class LabwatchScenario(Scenario):
@@ -53,10 +57,10 @@ class LabwatchScenario(Scenario):
         self.tae_runner = None
         self.deterministic = False
 
-class SMAC3(object):
 
+class SMAC3(Optimizer):
     def __init__(self, config_space, seed=None):
-        
+        super(SMAC3, self).__init__(config_space)
         if seed is None:
             self.seed = np.random.randint(0, 10000)
         else:

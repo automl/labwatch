@@ -6,7 +6,6 @@ import re
 
 from sacred.config import ConfigScope
 from sacred.utils import join_paths
-from labwatch.utils import FixedDict
 from labwatch.hyperparameters import Parameter, ConditionResult
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.utils.types import InconsistentSpace, ParamValueExcept

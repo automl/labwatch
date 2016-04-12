@@ -179,8 +179,6 @@ class LabAssistant(object):
         values = self.get_suggestion()
         config = fill_in_values(self.search_space.search_space, values,
                                 fill_by='uid')
-        del config['_id']
-
         final_config.update(config)
         final_config.update(fixed)
 
@@ -243,21 +241,6 @@ class LabAssistant(object):
                     # which will not return the modified_count flag
                     break  # we've successfully acquired a run
         return run
-
-    def _convert_result(self, result):
-        if isinstance(result, dict):
-            if "optimization_target" not in result:
-                raise ValueError("The result of your experiment is a dict without "
-                                 "the key optimization_target, which is required "
-                                 "by labwatch")
-            else:
-                return result["optimization_target"]
-        elif not isinstance(result, numbers.Number):
-            raise ValueError("The result of your experiment is a {} " 
-                             "but labwatch expects either a number "
-                             "or a dict".format(type(result)))
-        else:
-            return result
         
     # ########################## exported functions ###########################
 
@@ -276,14 +259,14 @@ class LabAssistant(object):
             # if we never checked the database we have to check
             # everything that happened since the definition of time ;)
             self.last_checked = datetime.min
-        oldest_still_running = None
-        running_jobs = self.runs.find(
-            {
-                'heartbeat': {'$gte': self.last_checked},
-                'status': 'RUNNING'
-            },
-            sort=[("start_time", 1)]
-        )
+        # oldest_still_running = None
+        # running_jobs = self.runs.find(
+        #     {
+        #         'heartbeat': {'$gte': self.last_checked},
+        #         'status': 'RUNNING'
+        #     },
+        #     sort=[("start_time", 1)]
+        # )
         #
         completed_jobs = self.runs.find(
             {
@@ -294,24 +277,20 @@ class LabAssistant(object):
         # update the last checked to the oldest one that is still running
         self.last_checked = datetime.now()
         # collect all configs and their results
-        info = [(self._clean_config(job["config"]), self._convert_result(job["result"]), job)
+        info = [(self._clean_config(job["config"]), convert_result(job["result"]), job)
                 for job in completed_jobs if job["_id"] not in self.known_jobs]        
         if len(info) > 0:
             configs, results, jobs = (list(x) for x in zip(*info))
-            for job in jobs:
-                self.known_jobs.add(job["_id"])
+            self.known_jobs |= {job['_id'] for job in jobs}
             modifications = self.optimizer.update(configs, results, jobs)
             # the optimizer might modify the additional info of jobs
             if modifications is not None:
                 for job in modifications:
                     new_info = job.info
-                    self.runs.update_one({
-                        '_id': job["_id"]
-                    },{
-                        '$set': {
-                            'info': new_info
-                        }
-                    }, upsert=False)
+                    self.runs.update_one(
+                        {'_id': job["_id"]},
+                        {'$set': {'info': new_info}},
+                        upsert=False)
 
     def get_suggestion(self):
         if self.search_space is None:
@@ -422,3 +401,20 @@ class LabAssistant(object):
         self._verify_and_init_searchspace(space)
         # add searchspace as named_config
         self.ex._add_named_config(function.__name__, self._search_space_wrapper)
+
+
+def convert_result(result):
+    if isinstance(result, dict):
+        if "optimization_target" not in result:
+            raise ValueError("The result of your experiment is a dict "
+                             "without the key optimization_target, which "
+                             "is required by labwatch")
+        else:
+            assert isinstance(result["optimization_target"], numbers.Number)
+            return result["optimization_target"]
+    elif not isinstance(result, numbers.Number):
+        raise ValueError("The result of your experiment is a {} "
+                         "but labwatch expects either a number "
+                         "or a dict".format(type(result)))
+    else:
+        return result

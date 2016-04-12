@@ -23,9 +23,7 @@ def get_parameter_counter():
 
 # decode wrappers
 def decode_param_or_op(storage):
-    """ decode method for converting BSON like dicts
-        to parameter values.
-    """
+    """Decode method for converting BSON like dicts to parameter values."""
     if "_class" not in storage:
         raise ValueError('Not a valid hyperparameter')
     cname = str_to_class(storage["_class"])
@@ -35,7 +33,6 @@ def decode_param_or_op(storage):
 
 # parameters
 # a parameter is a dict that can have blocked/fixed values
-
 class Parameter(FixedDict):
     def __init__(self, uid=None, fixed=None):
         if uid is None:

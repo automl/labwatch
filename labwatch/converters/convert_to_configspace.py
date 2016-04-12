@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
 from labwatch.searchspace import SearchSpace
-from labwatch.utils.types import str_to_class, \
-    basic_types, types_to_str, str_to_types
+from labwatch.utils.types import basic_types, str_to_types
 from labwatch.utils.types import ParamValueExcept
 import numpy as np
 
@@ -11,6 +14,22 @@ from ConfigSpace.conditions import InCondition
 
 
 def convert_simple_param(name, param):
+    """
+    Convert a simple labwatch parameter to a ConfigSpace parameter.
+
+    Parameters
+    ----------
+    name: str
+        The name of the parameter.
+
+    param: dict
+        Dictionary describing the parameter.
+
+    Returns
+    -------
+    ConfigSpace.hyperparameters.Hyperparameter:
+        The converted hyperparameter.
+    """
     if param["_class"] == 'Constant':
         return csh.Constant(name, param["value"])
     elif param["_class"] == 'Categorical':
@@ -27,48 +46,62 @@ def convert_simple_param(name, param):
             else:
                 basic_choices.append(choice)        
         return csh.CategoricalHyperparameter(name=name,
-                                            choices=basic_choices,
-                                            default=basic_choices[0])
+                                             choices=basic_choices,
+                                             default=basic_choices[0])
     elif param["_class"] == 'UniformFloat':
         return csh.UniformFloatHyperparameter(name=name,
-                                             lower=param["lower"],
-                                             upper=param["upper"],
-                                             default=param["default"],
-                                             log=param["log_scale"])
+                                              lower=param["lower"],
+                                              upper=param["upper"],
+                                              default=param["default"],
+                                              log=param["log_scale"])
     elif param["_class"] == 'UniformInt':
         return csh.UniformIntegerHyperparameter(name=name,
-                                               lower=param["lower"],
-                                               upper=param["upper"],
-                                               default=param["default"],
-                                               log=param["log_scale"])
+                                                lower=param["lower"],
+                                                upper=param["upper"],
+                                                default=param["default"],
+                                                log=param["log_scale"])
     elif param["_class"] == 'UniformNumber':
         ptype = str_to_types[param["type"]]
-        if  ptype == float:
+        if ptype == float:
             return csh.UniformFloatHyperparameter(name=name,
-                                                 lower=param["lower"],
-                                                 upper=param["upper"],
-                                                 default=param["default"],
-                                                 log=param["log_scale"])
+                                                  lower=param["lower"],
+                                                  upper=param["upper"],
+                                                  default=param["default"],
+                                                  log=param["log_scale"])
         elif ptype == int:
             return csh.UniformIntegerHyperparameter(name=name,
-                                                   lower=param["lower"],
-                                                   upper=param["upper"],
-                                                   default=param["default"],
-                                                   log=param["log_scale"])
+                                                    lower=param["lower"],
+                                                    upper=param["upper"],
+                                                    default=param["default"],
+                                                    log=param["log_scale"])
         else:
-            raise ValueError("Don't know how to represent UniformNumber "
-                             "with type: {} in ConfigSpace notation".format(param["type"]))    
+            raise ValueError("Don't know how to represent UniformNumber with "
+                             "type: {} in ConfigSpace".format(param["type"]))
     elif param["_class"] == 'Gaussian':
         return csh.NormalFloatHyperparameter(name=name,
-                                            mu=param["mu"],
-                                            sigma=param["sigma"],
-                                            log=param["log_scale"])
+                                             mu=param["mu"],
+                                             sigma=param["sigma"],
+                                             log=param["log_scale"])
                                          
     else:
-        raise ValueError("Don't know how to represent {} in ConfigSpace notation.".format(param))
+        raise ValueError("Don't know how to represent {} in ConfigSpace "
+                         "notation.".format(param))
 
 
 def sacred_space_to_configspace(space):
+    """
+    Convert a Labwatch searchspace to a ConfigSpace.
+
+    Parameters
+    ----------
+    space: labwatch.searchspace.SearchSpace
+        A labwatch searchspace to be converted.
+
+    Returns
+    -------
+    ConfigSpace.ConfigurationSpace:
+        A ConfigurationSpace equivalent to the given SeachSpace.
+    """
     # first convert all non conditionals
     non_conditions = {}
     conditions = []
@@ -82,17 +115,14 @@ def sacred_space_to_configspace(space):
         # next build the condition as required by the ConfigSpace
         condition = param["condition"]
         condition_name = space.uids_to_names[condition["uid"]]
-        converted_condition = None
-        if condition_name in non_conditions:
-            converted_condition = non_conditions[condition_name]
-        else:
+        if condition_name not in non_conditions:
             raise ValueError("Unknown parameter in Condition")
+        converted_condition = non_conditions[condition_name]
         converted_choices = []
         for choice in condition["choices"]:
             if isinstance(choice, dict):
                 if choice["_class"] != "Constant":
                     raise ValueError("Invalid choice encountered in Condition")
-
                 converted_choices.append(choice["value"])
             else:
                 converted_choices.append(choice)
@@ -111,6 +141,23 @@ def sacred_space_to_configspace(space):
 
 
 def sacred_config_to_configspace(cspace, config):
+    """
+    Fill a ConfigurationSpace with the given values and return the resulting
+    Configuration.
+
+    Parameters
+    ----------
+    cspace: ConfigSpace.ConfigurationSpace
+        The configuration space to be populated.
+
+    config: dict
+        The configuration values as a dictionary mapping names to values.
+
+    Returns
+    -------
+    ConfigSpace.Configuration:
+        The resulting Configuration.
+    """
     if isinstance(cspace, SearchSpace):
         raise ValueError("You called sacred_config_to_configspace "
                          "with an instance of labwatch.SearchSpace "
@@ -120,16 +167,19 @@ def sacred_config_to_configspace(cspace, config):
 
 
 def configspace_config_to_sacred(config):
-    result = {}
-    values = config.get_dictionary()
-    for name,value in values.items():
-        if value is None:
-            # we remove all None entries as our
-            # (sacred searchspace) convention is
-            # to not include them
-            pass
-        else:
-            result[name] = value
-    return result
+    """
+    Convert a Configuration into a dict mapping parameter names to values.
 
-        
+    Parameters
+    ----------
+    config: ConfigSpace.Configuration
+
+    Returns
+    -------
+    dict:
+        Dictionary mapping parameter names to values.
+    """
+    values = config.get_dictionary()
+    # we remove all None entries as our (sacred searchspace) convention is
+    # to not include them
+    return {name: value for name, value in values.items() if value is not None}

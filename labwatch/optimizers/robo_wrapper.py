@@ -1,4 +1,7 @@
-import logging
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
 import numpy as np
 import george
 
@@ -11,18 +14,18 @@ from robo.maximizers.direct import Direct
 from robo.priors.default_priors import DefaultPrior
 from robo.initial_design.init_random_uniform import init_random_uniform
 
-from labwatch.converters.convert_to_configspace import sacred_space_to_configspace
-from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
-from labwatch.converters.convert_to_configspace import configspace_config_to_sacred
+from labwatch.optimizers.base import Optimizer
+from labwatch.converters.convert_to_configspace import (
+    sacred_space_to_configspace, sacred_config_to_configspace,
+    configspace_config_to_sacred)
 
 
-class RoBO(object):
+class RoBO(Optimizer):
 
-    def __init__(self, config_space,
-                 burnin=1000,
-                 chain_length=200,
+    def __init__(self, config_space, burnin=1000, chain_length=200,
                  n_hypers=20):
 
+        super(RoBO, self).__init__(config_space)
         self.rng = np.random.RandomState(np.random.seed())
 
         self.burnin = burnin
@@ -41,25 +44,20 @@ class RoBO(object):
         self.Y = None
 
     def suggest_configuration(self):
-
         if self.X is None and self.Y is None:
-            new_x = init_random_uniform(self.X_lower,
-                                       self.X_upper,
-                                       N=1,
-                                       rng=self.rng)
+            new_x = init_random_uniform(self.X_lower, self.X_upper,
+                                        N=1, rng=self.rng)
 
         elif self.X.shape[0] == 1:
             # We need at least 2 data points to train a GP
-            new_x = init_random_uniform(self.X_lower,
-                                    self.X_upper,
-                                    N=1,
-                                    rng=self.rng)
+            new_x = init_random_uniform(self.X_lower, self.X_upper,
+                                        N=1, rng=self.rng)
 
         else:
             cov_amp = 1
             n_dims = self.X_lower.shape[0]
-            config_kernel = george.kernels.Matern52Kernel(np.ones([n_dims]) * 0.01,
-                                                      ndim=n_dims)
+            config_kernel = george.kernels.Matern52Kernel(
+                np.ones([n_dims]) * 0.01, ndim=n_dims)
             noise_kernel = george.kernels.WhiteKernel(1e-9, ndim=n_dims)
             kernel = cov_amp * config_kernel + noise_kernel
             prior = DefaultPrior(len(kernel))
@@ -71,8 +69,8 @@ class RoBO(object):
 
             acq = EI(model, self.X_lower, self.X_upper)
 
-            acquisition_func = IntegratedAcquisition(model, acq,
-                                                self.X_lower, self.X_upper)
+            acquisition_func = IntegratedAcquisition(
+                model, acq, self.X_lower, self.X_upper)
 
             maximizer = Direct(acquisition_func, self.X_lower, self.X_upper)
 
@@ -91,10 +89,11 @@ class RoBO(object):
         return result
 
     def update(self, configs, costs, runs):
-        converted_configs = [sacred_config_to_configspace(self.config_space, config)
-                             for config in configs]
+        converted_configs = [
+            sacred_config_to_configspace(self.config_space, config)
+            for config in configs]
 
-        for (config, cost, run) in zip(converted_configs, costs, runs):
+        for (config, cost) in zip(converted_configs, costs):
             # Maps configuration to [0, 1]^D space
             x = config.get_array()
 
