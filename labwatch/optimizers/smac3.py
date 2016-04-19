@@ -5,7 +5,7 @@ from smac.smbo.smbo import SMBO
 from smac.scenario.scenario import Scenario
 from smac.tae.execute_ta_run import StatusType
 from smac.runhistory.runhistory import RunHistory
-from smac.runhistory.runhistory2epm import RunHistory2EPM
+from smac.runhistory.runhistory2epm import RunHistory2EPM4Cost
 
 from labwatch.converters.convert_to_configspace import sacred_space_to_configspace
 from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
@@ -25,7 +25,7 @@ class LabwatchScenario(Scenario):
         self.ta = None
         self.execdir = None
         self.pcs_fn = None
-        self.run_obj = 'QUALITY'
+        self.run_obj = 'quality'
         self.overall_obj = self.run_obj
 
         # Time limits for smac
@@ -68,7 +68,7 @@ class SMAC3(object):
         self.run_history = RunHistory()
         self.smac = SMBO(self.scenario, np.random.RandomState(seed))
         self.num_params = len(self.config_space.get_hyperparameters())
-        self.rh2EPM = RunHistory2EPM(scenario=self.scenario,
+        self.rh2EPM = RunHistory2EPM4Cost(scenario=self.scenario,
                                      num_params=self.num_params,
                                      success_states=None,
                                      impute_censored_data=False,
