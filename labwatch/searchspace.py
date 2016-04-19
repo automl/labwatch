@@ -6,7 +6,6 @@ import re
 
 from sacred.config import ConfigScope
 from sacred.utils import join_paths
-from labwatch.utils import FixedDict
 from labwatch.hyperparameters import Parameter, ConditionResult
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.utils.types import InconsistentSpace, ParamValueExcept
@@ -16,6 +15,11 @@ class SearchSpace(object):
 
     def __init__(self, search_space):
         super(SearchSpace, self).__init__()
+        # extract the _id from the searchspace definition
+        self._id = search_space.get('_id', None)
+        if '_id' in search_space:
+            del search_space['_id']
+
         self.search_space = search_space
         parameters = collect_hyperparameters(search_space)
         params = sorted(parameters.values(), key=lambda x: x['uid'])
@@ -38,6 +42,8 @@ class SearchSpace(object):
     def to_json(self):
         son = dict(self.search_space)
         son['_class'] = 'SearchSpace'
+        if self._id is not None:
+            son['_id'] = self._id
         return son
 
     @classmethod
@@ -45,7 +51,6 @@ class SearchSpace(object):
         assert son['_class'] == 'SearchSpace'
         del son['_class']
         return SearchSpace(son)
-
 
     def validate_conditions(self):
         for pname in self.conditions:
@@ -124,6 +129,12 @@ class SearchSpace(object):
 
     def default(self, max_iters_till_cycle=50):
         return self.sample(max_iters_till_cycle, strategy="default")
+
+    def __eq__(self, other):
+        if not isinstance(other, SearchSpace):
+            return False
+        else:
+            return self.search_space == other.search_space
 
 
 # decorator

@@ -1,4 +1,7 @@
-import logging
+#!/usr/bin/env python
+# coding=utf-8
+from __future__ import division, print_function, unicode_literals
+
 import numpy as np
 
 from smac.smbo.smbo import SMBO
@@ -7,9 +10,10 @@ from smac.tae.execute_ta_run import StatusType
 from smac.runhistory.runhistory import RunHistory
 from smac.runhistory.runhistory2epm import RunHistory2EPM4Cost
 
-from labwatch.converters.convert_to_configspace import sacred_space_to_configspace
-from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
-from labwatch.converters.convert_to_configspace import configspace_config_to_sacred
+from labwatch.optimizers.base import Optimizer
+from labwatch.converters.convert_to_configspace import (
+    sacred_space_to_configspace, sacred_config_to_configspace,
+    configspace_config_to_sacred)
 
 
 class LabwatchScenario(Scenario):
@@ -53,10 +57,10 @@ class LabwatchScenario(Scenario):
         self.tae_runner = None
         self.deterministic = False
 
-class SMAC3(object):
 
+class SMAC3(Optimizer):
     def __init__(self, config_space, seed=None):
-        
+        super(SMAC3, self).__init__(config_space)
         if seed is None:
             self.seed = np.random.randint(0, 10000)
         else:
@@ -91,17 +95,17 @@ class SMAC3(object):
 
         return result
 
-    def update(self, configs, costs, run_infos):
+    def update(self, configs, costs, runs):
         converted_configs = [sacred_config_to_configspace(self.config_space, config)
                              for config in configs]
-        for (config, cost, info) in zip(converted_configs, costs, run_infos):
+        for (config, cost, run) in zip(converted_configs, costs, runs):
             # JTS fetch duration, status and seed from the job data
-            duration = (info["stop_time"] - info["start_time"]).total_seconds()
-            if info["status"] == "COMPLETED":
+            duration = (run["stop_time"] - run["start_time"]).total_seconds()
+            if run["status"] == "COMPLETED":
                 status = StatusType.SUCCESS
             else:
                 status = StatusType.CRASHED            
-            seed = info["config"]["seed"]
+            seed = run["config"]["seed"]
             self.run_history.add(config=config, cost=cost,
                                  time=duration, status=status,
                                  instance_id=0, seed=seed)

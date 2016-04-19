@@ -4,6 +4,7 @@ from __future__ import division, print_function, unicode_literals
 
 from datetime import datetime
 import time
+import numbers
 
 import gridfs
 import pymongo
@@ -90,7 +91,6 @@ class LabAssistant(object):
         # mark that we have newer looked for finished runs
         self.known_jobs = set()
         self.last_checked = None
-        self.space_initialized = False
         self.search_space = None
         # then inject an observer if it is required
         if self.db is not None and self.always_inject_observer:
@@ -125,38 +125,33 @@ class LabAssistant(object):
         return False
 
     def _verify_and_init_searchspace(self, space_from_ex):
-        # try to figure out if a searchspace is defined in the database
-        if self.db is None:
-            self.space_initialized = True
-            self.search_space = space_from_ex
-            self.optimizer = RandomSearch(self.search_space)
-            return self.search_space
-        space_from_db = self.db_searchspace.find_one()
-        if space_from_db is not None:
-            if space_from_ex is not None:
-                # if this search space has no id we set it to
-                # the one from the database before comparing
-                if "_id" not in space_from_ex.search_space:
-                    space_from_ex.search_space["_id"] = space_from_db.search_space["_id"]
-                if space_from_db.to_json() != space_from_ex.to_json():
-                    raise InconsistentSpace("The search space of your "
-                                            "experiment is incompatible with "
-                                            "the one stored in the database! "
-                                            "Use new_space=True if it changed")
-        else:
+        # get searchspace from database or from experiment
+        self.search_space = self.db_searchspace.find_one() if self.db else None
+        if self.search_space is None:
             if space_from_ex is None:
-                raise RuntimeError("You provided no search space and no "
-                                   "space is saved in the database!")
+                raise RuntimeError("You provided no search space and no space "
+                                   "is saved in the database!")
+
             sp_id = self.db_searchspace.insert(space_from_ex.to_json())
-            space_from_db = self.db_searchspace.find_one({"_id": sp_id})
-        self.space_id = space_from_db.search_space["_id"]
-        self.optimizer = None
+            self.search_space = self.db_searchspace.find_one({"_id": sp_id})
+        assert self.search_space is not None
+
+        # Check for consistency
+        if space_from_ex and not self.search_space == space_from_ex:
+            raise InconsistentSpace(
+                "The search space of your experiment is incompatible with the "
+                "one stored in the database! Use new_space=True if it changed")
+
+        # Create the optimizer
         if self.optimizer_class is not None:
-            self.optimizer = self.optimizer_class(space_from_db)
+            if not self.db:
+                import warnings
+                warnings.warn('No database. Falling back to random search')
+                self.optimizer = RandomSearch(self.search_space)
+            self.optimizer = self.optimizer_class(self.search_space)
         else:
-            self.optimizer = RandomSearch(space_from_db)
-        self.space_initialized = True
-        self.search_space = space_from_db
+            self.optimizer = RandomSearch(self.search_space)
+
         # update the optimizer 
         if self.optimizer.needs_updates():
             self.update_optimizer()
@@ -176,7 +171,7 @@ class LabAssistant(object):
         # ConfigScope, but here it is not supported.
         assert not fallback, "{}".format(fallback)
         # ensure we have a search space definition
-        if (not self.space_initialized) or (self.search_space is None):
+        if self.search_space is None:
             raise ValueError("LabAssistant search_space_wrapper called but "
                              "there is no search space definition")
         # if there was no database passed to the assistant
@@ -184,8 +179,6 @@ class LabAssistant(object):
         values = self.get_suggestion()
         config = fill_in_values(self.search_space.search_space, values,
                                 fill_by='uid')
-        del config['_id']
-
         final_config.update(config)
         final_config.update(fixed)
 
@@ -266,14 +259,14 @@ class LabAssistant(object):
             # if we never checked the database we have to check
             # everything that happened since the definition of time ;)
             self.last_checked = datetime.min
-        oldest_still_running = None
-        running_jobs = self.runs.find(
-            {
-                'heartbeat': {'$gte': self.last_checked},
-                'status': 'RUNNING'
-            },
-            sort=[("start_time", 1)]
-        )
+        # oldest_still_running = None
+        # running_jobs = self.runs.find(
+        #     {
+        #         'heartbeat': {'$gte': self.last_checked},
+        #         'status': 'RUNNING'
+        #     },
+        #     sort=[("start_time", 1)]
+        # )
         #
         completed_jobs = self.runs.find(
             {
@@ -284,21 +277,23 @@ class LabAssistant(object):
         # update the last checked to the oldest one that is still running
         self.last_checked = datetime.now()
         # collect all configs and their results
-        info = [(self._clean_config(job["config"]), job["result"], job)
-                for job in completed_jobs if job["_id"] not in self.known_jobs]
+        info = [(self._clean_config(job["config"]), convert_result(job["result"]), job)
+                for job in completed_jobs if job["_id"] not in self.known_jobs]        
         if len(info) > 0:
             configs, results, jobs = (list(x) for x in zip(*info))
-            for job in jobs:
-                self.known_jobs.add(job["_id"])
+            self.known_jobs |= {job['_id'] for job in jobs}
             modifications = self.optimizer.update(configs, results, jobs)
             # the optimizer might modify the additional info of jobs
             if modifications is not None:
                 for job in modifications:
-                    # TODO apply these modifications 
-                    pass
+                    new_info = job.info
+                    self.runs.update_one(
+                        {'_id': job["_id"]},
+                        {'$set': {'info': new_info}},
+                        upsert=False)
 
     def get_suggestion(self):
-        if (not self.space_initialized) or (self.search_space is None):
+        if self.search_space is None:
             raise ValueError("LabAssistant sample_suggestion called "
                              "without a defined search space")
         if self.optimizer.needs_updates():
@@ -406,3 +401,20 @@ class LabAssistant(object):
         self._verify_and_init_searchspace(space)
         # add searchspace as named_config
         self.ex._add_named_config(function.__name__, self._search_space_wrapper)
+
+
+def convert_result(result):
+    if isinstance(result, dict):
+        if "optimization_target" not in result:
+            raise ValueError("The result of your experiment is a dict "
+                             "without the key optimization_target, which "
+                             "is required by labwatch")
+        else:
+            assert isinstance(result["optimization_target"], numbers.Number)
+            return result["optimization_target"]
+    elif not isinstance(result, numbers.Number):
+        raise ValueError("The result of your experiment is a {} "
+                         "but labwatch expects either a number "
+                         "or a dict".format(type(result)))
+    else:
+        return result
