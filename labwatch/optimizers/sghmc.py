@@ -24,7 +24,6 @@ from lasagne.layers import InputLayer, DenseLayer
 from hmc_bnn.normalized import weight_norm
 from hmc_bnn.bnn import *
 from hmc_bnn.acquisition import EI as bnn_ei
-from hmc_bnn.acquisition import UCB as bnn_ucb
 
 
 class SGHMC(Optimizer):
@@ -46,19 +45,17 @@ class SGHMC(Optimizer):
 
 
     def suggest_configuration(self):
+        print("suggest_config")
         if self.X is None and self.Y is None:
             new_x = init_random_uniform(self.X_lower, self.X_upper,
                                         N=1, rng=self.rng)
 
         elif self.X.shape[0] == 1:
             # We need at least 2 data points to train a GP
-            new_x = init_random_uniform(self.X_lower, self.X_upper,
+            Xopt = init_random_uniform(self.X_lower, self.X_upper,
                                         N=1, rng=self.rng)
 
         else:
-
-            print(self.X)
-            print(self.Y)
             my = np.mean(self.Y)
             stdy = np.std(self.Y)
             Y_norm = (self.Y - my) / stdy
@@ -79,8 +76,6 @@ class SGHMC(Optimizer):
                             + np.random.randn(20, self.X.shape[1]) * 0.1
 
 
-            print(Xinit_rand.shape)
-            print(Xinc_rand.shape)
             Xinit = floatX(np.concatenate([Xinc_rand, Xinit_rand], axis=0))
             Xres,Acq_opt,best = acquisition.optimize(Xinit,
                                             Y_norm[inc_idx_n].reshape(-1, 1),
