@@ -45,9 +45,9 @@ class SGHMC(Optimizer):
 
 
     def suggest_configuration(self):
-        print("suggest_config")
+
         if self.X is None and self.Y is None:
-            new_x = init_random_uniform(self.X_lower, self.X_upper,
+            Xopt = init_random_uniform(self.X_lower, self.X_upper,
                                         N=1, rng=self.rng)
 
         elif self.X.shape[0] == 1:
@@ -56,6 +56,9 @@ class SGHMC(Optimizer):
                                         N=1, rng=self.rng)
 
         else:
+            Xopt = init_random_uniform(self.X_lower, self.X_upper,
+                                        N=1, rng=self.rng)
+
             my = np.mean(self.Y)
             stdy = np.std(self.Y)
             Y_norm = (self.Y - my) / stdy
@@ -86,8 +89,7 @@ class SGHMC(Optimizer):
             inc_idx = np.argmin(self.Y)
             self.incumbents.append(self.X[inc_idx, None, :])
 
-
-        # Map from [0, 1]^D space back to original space
+        # Maps from [0, 1]^D space back to original space
         next_config = Configuration(self.config_space, vector=Xopt[0, :])
 
         # Transform to sacred configuration
