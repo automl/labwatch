@@ -10,6 +10,6 @@ except ImportError:
     print('WARNING: SMAC not found')
 
 try:
-    from .robo_wrapper import RoBO
+    from .bayesian_optimization import BayesianOptimization
 except ImportError:
-    print('WARNING: RoBO not found')
+    print('WARNING: BayesianOptimization not found')
