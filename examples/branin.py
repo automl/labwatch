@@ -5,14 +5,14 @@ import pymongo
 
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
-from labwatch.optimizers import RoBO
+from labwatch.optimizers import BayesianOptimization
 from labwatch.hyperparameters import UniformFloat
 import numpy as np
 
-c = pymongo.MongoClient()
+c = pymongo.MongoClient('localhost', 27018)
 db = c.labwatch_branin
 ex = Experiment('labwatch_branin_test')
-a = LabAssistant(db, ex, optimizer=RoBO, always_inject_observer=True)
+a = LabAssistant(db, ex, optimizer=BayesianOptimization, always_inject_observer=True)
 
 
 @ex.config
