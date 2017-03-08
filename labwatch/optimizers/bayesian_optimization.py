@@ -45,12 +45,12 @@ class BayesianOptimization(Optimizer):
     def suggest_configuration(self):
         if self.X is None and self.y is None:
             new_x = init_random_uniform(self.lower, self.upper,
-                                        N=1, rng=self.rng)
+                                        n_points=1, rng=self.rng)[0, :]
 
         elif self.X.shape[0] == 1:
             # We need at least 2 data points to train a GP
             new_x = init_random_uniform(self.lower, self.upper,
-                                        N=1, rng=self.rng)
+                                        n_points=1, rng=self.rng)[0, :]
 
         else:
             cov_amp = 1
@@ -89,7 +89,7 @@ class BayesianOptimization(Optimizer):
 
         # Transform to sacred configuration
         result = configspace_config_to_sacred(next_config)
-
+        print(result)
         return result
 
     def update(self, configs, costs, runs):
