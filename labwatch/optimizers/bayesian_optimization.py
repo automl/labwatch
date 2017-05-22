@@ -89,7 +89,7 @@ class BayesianOptimization(Optimizer):
 
         # Transform to sacred configuration
         result = configspace_config_to_sacred(next_config)
-        print(result)
+
         return result
 
     def update(self, configs, costs, runs):

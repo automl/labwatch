@@ -53,25 +53,46 @@ SON_MANIPULATORS.append(SearchSpaceManipulator())
 class LabAssistant(object):
 
     """
-    We will record experiments using the following scheme:
-    Each experiment has its own database. This database has
-    a search_space document that stores the definition of the
-    space TODO how is it defined ? :
-    db.search_space - entries structured like {
-       ...
-    }
+    The main class for Labwatch. It runs an experiment with a configuration suggested by
+    and hyperparameter optimizer.
 
-    db.runs - standard run entries as defined through sacred
+    The hyperparameter optimizer uses the information about the experiment that are stored in the
+    database to suggest a new configuration.
     """
 
     def __init__(self,
-                 database,
                  experiment,
+                 database_name,
+                 hostname="localhost",
+                 port=27017,
                  optimizer=None,
                  prefix='default',
                  always_inject_observer=False):
 
-        self.db = database
+        """
+        Create a new LabAssistant and connects it with a database.
+
+        Parameters
+        ----------
+        experiment : object
+            The (sacred) experiment that is going to be optimized.
+        database_name : str
+            The name of the database where all information about the dataset are saved.
+        hostname : str, optional
+            The hostname where the (mongo) database is located.
+        port : int, optional
+            Specifies the port to connect to the (mongo) database
+        optimizer: object, optional
+            Specifies which optimizer is used to suggest a new hyperparameter configuration
+        prefix: str, optional
+            Additional prefix for the database
+        always_inject_observer: bool, optional
+            If true an MongoObserver is added to the experiment.
+        """
+
+        client = pymongo.MongoClient(hostname + ":" + str(port))
+
+        self.db = client[database_name]
         self.ex = experiment
         self.ex.logger = create_basic_stream_logger()
         self.logger = self.ex.logger.getChild('LabAssistant')

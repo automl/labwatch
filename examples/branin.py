@@ -9,10 +9,13 @@ from labwatch.optimizers import BayesianOptimization
 from labwatch.hyperparameters import UniformFloat
 import numpy as np
 
-c = pymongo.MongoClient('localhost', 27018)
-db = c.labwatch_branin
-ex = Experiment('labwatch_branin_test')
-a = LabAssistant(db, ex, optimizer=BayesianOptimization, always_inject_observer=True)
+
+ex = Experiment()
+a = LabAssistant(ex, "labwatch_demo",
+                 hostname="132.230.166.220",
+                 port=27018,
+                 optimizer=BayesianOptimization,
+                 always_inject_observer=True)
 
 
 @ex.config
