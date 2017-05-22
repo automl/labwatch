@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 # coding=utf-8
 from __future__ import division, print_function, unicode_literals
-import pymongo
 
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
-from labwatch.optimizers import BayesianOptimization
 from labwatch.hyperparameters import UniformFloat
 import numpy as np
 
 
 ex = Experiment()
-a = LabAssistant(ex, "labwatch_demo",
-                 hostname="132.230.166.220",
-                 port=27018,
-                 optimizer=BayesianOptimization,
-                 always_inject_observer=True)
+a = LabAssistant(ex, "labwatch_demo")
 
 
 @ex.config
