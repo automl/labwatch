@@ -21,7 +21,7 @@ requires = [
 
 setup(name='labwatch',
       version=labwatch.__version__,
-      description='Bayesian optimization extension to sacred',
+      description='Hyperparameter optimization extension to Sacred',
       long_description=open('README.rst').read(),
       classifiers=list(filter(None, classifiers.split('\n'))),
       author=labwatch.__authors__,
