@@ -344,7 +344,11 @@ class LabAssistant(object):
 
     def run_suggestion(self, command=None):
         # get config from optimizer
-        return self.run_config(self.get_suggestion(), command)
+        #return self.run_config(self.get_suggestion(), command)
+        values = self.get_suggestion()
+        config = fill_in_values(self.search_space.search_space, values, fill_by = 'uid')
+
+        return self.run_config(config, command)
 
     def run_random(self, command=None):
         return self.run_config(self.optimizer.get_random_config(), command)
@@ -355,7 +359,7 @@ class LabAssistant(object):
     def run_config(self, config, command=None):
         if config is None:
             raise RuntimeError("None is not an acceptable config!")
-        config = self._clean_config(config)
+        #config = self._clean_config(config)
         self._inject_observer(self.ex)
         if command is None:
             res = self.ex.run(config_updates=config)
