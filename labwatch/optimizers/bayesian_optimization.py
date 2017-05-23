@@ -104,11 +104,9 @@ class BayesianOptimization(Optimizer):
             if self.X is None and self.y is None:
                 self.X = np.array([x])
                 self.y = np.array([cost])
-            else:
+            elif x not in self.X:
                 self.X = np.append(self.X, x[np.newaxis, :], axis=0)
                 self.y = np.append(self.y, np.array([cost]), axis=0)
-
-            # TODO: Remove duplicates
 
     def needs_updates(self):
         return True
