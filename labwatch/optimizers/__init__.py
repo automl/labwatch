@@ -2,10 +2,11 @@
 # coding=utf-8
 from __future__ import division, print_function, unicode_literals
 
-from .base import Optimizer, RandomSearch
+from .base import Optimizer
+from .random_search import RandomSearch
 
 try:
-    from .smac3 import SMAC3
+    from .smac import SMAC3
 except ImportError:
     print('WARNING: SMAC not found')
 
