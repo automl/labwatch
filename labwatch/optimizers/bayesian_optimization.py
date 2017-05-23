@@ -67,8 +67,8 @@ class BayesianOptimization(Optimizer):
                                         n_hypers=self.n_hypers,
                                         chain_length=self.chain_length,
                                         burnin_steps=self.burnin,
-                                        normalize_input=True,
-                                        normalize_output=False,
+                                        normalize_input=False,
+                                        normalize_output=True,
                                         rng=self.rng,
                                         lower=self.lower,
                                         upper=self.upper)
@@ -107,6 +107,8 @@ class BayesianOptimization(Optimizer):
             else:
                 self.X = np.append(self.X, x[np.newaxis, :], axis=0)
                 self.y = np.append(self.y, np.array([cost]), axis=0)
+
+            # TODO: Remove duplicates
 
     def needs_updates(self):
         return True
