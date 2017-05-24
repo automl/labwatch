@@ -15,6 +15,17 @@ ex = Experiment()
 a = LabAssistant(ex, "labwatch_demo_keras")
 
 
+@ex.config
+def cfg():
+    batch_size = 128
+    num_units_first_layer = 512
+    num_units_second_layer = 512
+    dropout_first_layer = 0.2
+    dropout_second_layer = 0.2
+    learning_rate = 0.001
+
+
+
 @a.searchspace
 def small_search_space():
     batch_size = UniformNumber(lower=32, upper=64, default=32, type=int, log_scale=True)

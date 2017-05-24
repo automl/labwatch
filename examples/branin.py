@@ -23,7 +23,7 @@ def search_space():
 
 
 @ex.automain
-def branin_cost(x):
+def branin(x):
     x1, x2 = x
     print("{:.2f}, {:.2f}".format(x1, x2))
     y = (x2 - (5.1 / (4 * np.pi ** 2)) * x1 ** 2 + 5 * x1 / np.pi - 6) ** 2
