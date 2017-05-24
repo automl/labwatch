@@ -62,7 +62,7 @@ class LabAssistant(object):
 
     def __init__(self,
                  experiment,
-                 database_name,
+                 database_name=None,
                  hostname="localhost",
                  port=27017,
                  optimizer=None,
@@ -90,10 +90,15 @@ class LabAssistant(object):
             If true an MongoObserver is added to the experiment.
         """
 
-        client = pymongo.MongoClient(hostname + ":" + str(port))
-
-        self.db = client[database_name]
         self.ex = experiment
+        if database_name is not None:
+
+            client = pymongo.MongoClient(hostname + ":" + str(port))
+
+            self.db = client[database_name]
+        else:
+            self.db = self.ex.get_mongo_observer()
+
         self.ex.logger = create_basic_stream_logger()
         self.logger = self.ex.logger.getChild('LabAssistant')
         self.prefix = prefix
@@ -146,12 +151,12 @@ class LabAssistant(object):
         return False
 
     def _verify_and_init_searchspace(self, space_from_ex):
-        # get searchspace from database or from experiment
+        # Get searchspace from the database or from the experiment
         self.search_space = self.db_searchspace.find_one() if self.db else None
         if self.search_space is None:
             if space_from_ex is None:
-                raise RuntimeError("You provided no search space and no space "
-                                   "is saved in the database!")
+                raise RuntimeError("No search space is given and there is no search space "
+                                   "saved in the database!")
 
             sp_id = self.db_searchspace.insert(space_from_ex.to_json())
             self.search_space = self.db_searchspace.find_one({"_id": sp_id})
@@ -161,7 +166,7 @@ class LabAssistant(object):
         if space_from_ex and not self.search_space == space_from_ex:
             raise InconsistentSpace(
                 "The search space of your experiment is incompatible with the "
-                "one stored in the database! Use new_space=True if it changed")
+                "one stored in the database! Use new_space=True if has changed")
 
         # Create the optimizer
         if self.optimizer_class is not None:
@@ -346,7 +351,7 @@ class LabAssistant(object):
         # get config from optimizer
         #return self.run_config(self.get_suggestion(), command)
         values = self.get_suggestion()
-        config = fill_in_values(self.search_space.search_space, values, fill_by = 'uid')
+        config = fill_in_values(self.search_space.search_space, values, fill_by='uid')
 
         return self.run_config(config, command)
 
