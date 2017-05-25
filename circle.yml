@@ -35,5 +35,5 @@ deployment:
       - echo "Running SPHINX build"
       - sphinx-build -b html docs/source/ docs
       - git add *
-      - git commit -am "Git push detected. Documentation on github pages updated. [skip ci]"
+      - git commit -am "Git push detected. Documentation on github pages automatically updated. [skip ci]"
       - git push
