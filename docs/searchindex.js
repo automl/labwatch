@@ -1,0 +1,1 @@
+Search.setIndex({envversion:42,terms:{instal:[],quickstart:[]},objtypes:{},objnames:{},filenames:["index","installation","quickstart","apis"],titles:["Welcome to labwatch&#8217;s documentation!","Installation","Quickstart","API"],objects:{},titleterms:{labwatch:0,welcom:0,content:0,api:3,instal:1,document:0,quickstart:2}})

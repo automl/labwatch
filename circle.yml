@@ -1,0 +1,39 @@
+machine:
+  environment:
+    # The github organization or username of the repository which hosts the
+    # project and documentation.
+    USERNAME: "numairmansur"
+
+    # The repository where the documentation will be hosted
+    DOC_REPO: "labwatch"
+
+    # The base URL for the Github page where the documentation will be hosted
+    DOC_URL: ""
+
+    # The email is to be used for commits in the Github Page
+    EMAIL: "numair.mansur@gmail.com"
+
+dependencies:
+
+  # Various dependencies
+  pre:
+    - sudo apt-get update
+    - sudo apt-get install python-sphinx
+    - sudo pip install sphinx_bootstrap_theme
+  override:
+    - echo "Sphinx installed"
+test:
+
+  override:
+    - echo "test"
+
+deployment:
+  production:
+    branch: master
+    commands:
+      # Move this to a sh script if it gets too big.
+      - echo "Running SPHINX build"
+      - sphinx-build -b html docs/source/ docs
+      - git add *
+      - git commit -am "Git push detected. Documentation on github pages automatically updated. [skip ci]"
+      - git push
