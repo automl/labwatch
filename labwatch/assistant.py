@@ -2,14 +2,15 @@
 # coding=utf-8
 from __future__ import division, print_function, unicode_literals
 
-from datetime import datetime
+import datetime
 import time
 import numbers
-
+import functools
 import gridfs
 import pymongo
-from pymongo.son_manipulator import SONManipulator
+
 import sacred.optional as opt
+
 from sacred.commandline_options import QueueOption
 from sacred.observers.mongo import MongoObserver, MongoDbOption
 from sacred.utils import create_basic_stream_logger
@@ -18,6 +19,7 @@ from labwatch.optimizers import RandomSearch
 from labwatch.searchspace import SearchSpace, build_searchspace, fill_in_values, \
     get_values_from_config
 from labwatch.utils.types import InconsistentSpace
+
 from labwatch.utils.version_checks import (check_dependencies, check_sources,
                                            check_names)
 
@@ -28,7 +30,7 @@ if not opt.has_pymongo:
 SON_MANIPULATORS = []
 
 
-class SearchSpaceManipulator(SONManipulator):
+class SearchSpaceManipulator(pymongo.son_manipulator.SONManipulator):
 
     def transform_incoming(self, son, collection):
         return son
@@ -63,8 +65,7 @@ class LabAssistant(object):
     def __init__(self,
                  experiment,
                  database_name=None,
-                 hostname="localhost",
-                 port=27017,
+                 url="localhost",
                  optimizer=None,
                  prefix='default',
                  always_inject_observer=False):
@@ -78,10 +79,6 @@ class LabAssistant(object):
             The (sacred) experiment that is going to be optimized.
         database_name : str
             The name of the database where all information about the dataset are saved.
-        hostname : str, optional
-            The hostname where the (mongo) database is located.
-        port : int, optional
-            Specifies the port to connect to the (mongo) database
         optimizer: object, optional
             Specifies which optimizer is used to suggest a new hyperparameter configuration
         prefix: str, optional
@@ -91,13 +88,10 @@ class LabAssistant(object):
         """
 
         self.ex = experiment
-        if database_name is not None:
 
-            client = pymongo.MongoClient(hostname + ":" + str(port))
-
-            self.db = client[database_name]
-        else:
-            self.db = self.ex.get_mongo_observer()
+        self.db_name = database_name
+        self.url = url
+        self.db = None
 
         self.ex.logger = create_basic_stream_logger()
         self.logger = self.ex.logger.getChild('LabAssistant')
@@ -106,12 +100,12 @@ class LabAssistant(object):
         self.always_inject_observer = always_inject_observer
         self.optimizer_class = optimizer
         self.block_time = 1000  # TODO: what value should this be?
-        if self.db is not None:
-            self._init_db()
-        else:
-            self.runs = None
-            self.db_searchspace = None
-            self.optimizer = None
+        # if self.db is not None:
+        #     self._init_db()
+        # else:
+        #     self.runs = None
+        #     self.db_searchspace = None
+        #     self.optimizer = None
         # remember for which experiments we have config hooks setup
         self.observer_mapping = dict()
         # mark that we have newer looked for finished runs
@@ -119,10 +113,13 @@ class LabAssistant(object):
         self.last_checked = None
         self.search_space = None
         # then inject an observer if it is required
-        if self.db is not None and self.always_inject_observer:
-            self._inject_observer(self.ex)
+        #if self.db is not None and self.always_inject_observer:
+        #self._inject_observer(self.ex)
 
     def _init_db(self):
+        client = pymongo.MongoClient(self.url)
+
+        self.db = client[self.db_name]
         self.runs = self.db[self.prefix].runs
         self.db_searchspace = self.db[self.prefix].search_space
         for manipulator in SON_MANIPULATORS:
@@ -152,21 +149,41 @@ class LabAssistant(object):
 
     def _verify_and_init_searchspace(self, space_from_ex):
         # Get searchspace from the database or from the experiment
-        self.search_space = self.db_searchspace.find_one() if self.db else None
-        if self.search_space is None:
-            if space_from_ex is None:
-                raise RuntimeError("No search space is given and there is no search space "
-                                   "saved in the database!")
 
+        # Check if search space is already in the database
+        # (Note: We don't have any id yet that's why we have to loop over all entries)
+        in_db = False
+        if self.db_searchspace.count() > 0:
+            for sp in self.db_searchspace.find():
+                if sp == space_from_ex:
+                    self.search_space = sp
+                    in_db = True
+        if not in_db:
             sp_id = self.db_searchspace.insert(space_from_ex.to_json())
             self.search_space = self.db_searchspace.find_one({"_id": sp_id})
-        assert self.search_space is not None
 
-        # Check for consistency
-        if space_from_ex and not self.search_space == space_from_ex:
-            raise InconsistentSpace(
-                "The search space of your experiment is incompatible with the "
-                "one stored in the database! Use new_space=True if has changed")
+        return self.search_space
+
+    def _clean_config(self, config):
+        values = get_values_from_config(config, self.search_space.parameters)
+        return values
+
+    def _search_space_wrapper(self, space, space_name, fixed=None, fallback=None, preset=None):
+        # This function pretends to be a ConfigScope for a named_config
+        # but under the hood it is getting a suggestion from the optimizer
+
+        self.search_space_name = space_name
+        sp = build_searchspace(space)
+
+        # Establish connection to database
+        if self.db is None:
+            self._init_db()
+
+        # TODO: Get MongoObserver from experiment
+        self._inject_observer(self.ex)
+
+        # Check the validity of this search space
+        self._verify_and_init_searchspace(sp)
 
         # Create the optimizer
         if self.optimizer_class is not None:
@@ -178,19 +195,6 @@ class LabAssistant(object):
         else:
             self.optimizer = RandomSearch(self.search_space)
 
-        # update the optimizer 
-        if self.optimizer.needs_updates():
-            self.update_optimizer()
-        return self.search_space
-
-    def _clean_config(self, config):
-        values = get_values_from_config(config, self.search_space.parameters)
-        return values
-
-    def _search_space_wrapper(self, fixed=None, fallback=None, preset=None):
-        # This function pretends to be a ConfigScope for a named_config
-        # but under the hood it is getting a suggestion from the optimizer
-
         fixed = fixed or {}
         final_config = dict(preset or {})
         # the fallback parameter is needed to fit the interface of a
@@ -200,9 +204,11 @@ class LabAssistant(object):
         if self.search_space is None:
             raise ValueError("LabAssistant search_space_wrapper called but "
                              "there is no search space definition")
-        # if there was no database passed to the assistant
-        # try to fetch one from the args
+
+        # Get a hyperparameter configuration from the optimizer
         values = self.get_suggestion()
+
+        # Create configuration object
         config = fill_in_values(self.search_space.search_space, values,
                                 fill_by='uid')
         final_config.update(config)
@@ -278,13 +284,13 @@ class LabAssistant(object):
     
     def update_optimizer(self):
         if self.db is None:
-            self.logger.warn("cannot update optimizer, reason: no database!")
+            self.logger.warn("Cannot update optimizer, reason: no database!")
             return
         # First check database for all configurations
         if self.last_checked is None:
             # if we never checked the database we have to check
             # everything that happened since the definition of time ;)
-            self.last_checked = datetime.min
+            self.last_checked = datetime.datetime.min
         # oldest_still_running = None
         # running_jobs = self.runs.find(
         #     {
@@ -294,14 +300,18 @@ class LabAssistant(object):
         #     sort=[("start_time", 1)]
         # )
         #
+        # TODO: Just take configs from the given search space
+
+        # Take all jobs that are finished and were run with a config from this searchspace
         completed_jobs = self.runs.find(
             {
                 'heartbeat': {'$gte': self.last_checked},
-                'status': 'COMPLETED'
+                'status': 'COMPLETED',
+                'meta.options.UPDATE': self.search_space_name
             }
         )
         # update the last checked to the oldest one that is still running
-        self.last_checked = datetime.now()
+        self.last_checked = datetime.datetime.now()
         # collect all configs and their results
         info = [(self._clean_config(job["config"]), convert_result(job["result"]), job)
                 for job in completed_jobs if job["_id"] not in self.known_jobs]        
@@ -424,13 +434,24 @@ class LabAssistant(object):
 
     def searchspace(self, function):
         """Decorator for creating a searchspace definition from a function."""
-        if self.search_space is not None:
-            raise RuntimeError('Only one searchspace allowed per Assistant')
-        space = build_searchspace(function)
-        # validate the search space
-        self._verify_and_init_searchspace(space)
-        # add searchspace as named_config
-        self.ex._add_named_config(function.__name__, self._search_space_wrapper)
+        #if self.search_space is not None:
+        #    raise RuntimeError('Only one searchspace allowed per Assistant')
+
+        # space = build_searchspace(function)
+        #
+        # #TODO: Get MongoObserver from experiment
+        #
+        # # Establish connection to database
+        # self._init_db()
+        #
+        # # Check the validity of this search space
+        # self._verify_and_init_searchspace(space)
+
+        # Get a configuration from the optimizer and add it as a named config
+        searchspace_wrapper = functools.partial(self._search_space_wrapper,
+                                                space=function,
+                                                space_name=function.__name__)
+        self.ex._add_named_config(function.__name__, searchspace_wrapper)
 
 
 def convert_result(result):
