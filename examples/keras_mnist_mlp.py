@@ -9,10 +9,10 @@ from keras.optimizers import RMSprop
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
 from labwatch.hyperparameters import UniformNumber, UniformFloat
-
+from labwatch.optimizers import BayesianOptimization
 
 ex = Experiment()
-a = LabAssistant(ex, "labwatch_demo_keras")
+a = LabAssistant(ex, "labwatch_demo_keras", optimizer=BayesianOptimization)
 
 
 @ex.config
@@ -29,8 +29,6 @@ def cfg():
 @a.searchspace
 def small_search_space():
     batch_size = UniformNumber(lower=32, upper=64, default=32, type=int, log_scale=True)
-    num_units_first_layer = UniformNumber(lower=128, upper=512, default=256, type=int, log_scale=True)
-    num_units_second_layer = UniformNumber(lower=128, upper=512, default=256, type=int, log_scale=True)
     learning_rate = UniformFloat(lower=10e-3, upper=10e-2, default=10e-2, log_scale=True)
 
 
