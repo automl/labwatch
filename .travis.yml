@@ -1,0 +1,16 @@
+language: python
+python:
+  - "3.4"
+  - "3.5"
+os:
+  - linux
+before_install:
+  - sudo apt-get update
+  - pip install --upgrade pip
+  - sudo pip install coverage
+  - sudo pip install -U pytest
+  - sudo apt-get install python-dev gcc
+  
+install:
+  - sudo python setup.py install
+script: coverage run --source=labwatch -m unittest discover tests -v
