@@ -1,4 +1,5 @@
 # labwatch
+[![Build Status](https://travis-ci.org/automl/labwatch.svg?branch=master)](https://travis-ci.org/automl/labwatch)
 An extension to Sacred for automated hyperparameter optimization.
 
 # Documentation
