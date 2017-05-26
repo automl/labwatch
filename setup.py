@@ -15,8 +15,7 @@ License :: OSI Approved :: MIT License
 requires = [
     'numpy >= 1.7',
     'sacred',
-    'pymongo',
-    'ConfigSpace'
+    'pymongo'
 ]
 
 setup(name='labwatch',
