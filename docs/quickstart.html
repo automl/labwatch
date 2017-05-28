@@ -85,7 +85,13 @@
   <ul class="dropdown-menu localtoc"
       role="menu"
       aria-labelledby="dLabelLocalToc"><ul>
-<li><a class="reference internal" href="#">Quickstart</a></li>
+<li><a class="reference internal" href="#">Quickstart</a><ul>
+<li><a class="reference internal" href="#automatically-tuning-of-hyperparameters">Automatically Tuning of Hyperparameters</a></li>
+<li><a class="reference internal" href="#configuration-search-spaces">Configuration Search Spaces</a></li>
+<li><a class="reference internal" href="#hyperparameter-optimizers">Hyperparameter Optimizers</a></li>
+<li><a class="reference internal" href="#multiple-search-spaces">Multiple Search Spaces</a></li>
+</ul>
+</li>
 </ul>
 </ul>
 </li>
@@ -127,7 +133,13 @@
   <div class="row">
       <div class="col-md-3">
         <div id="sidebar" class="bs-sidenav" role="complementary"><ul>
-<li><a class="reference internal" href="#">Quickstart</a></li>
+<li><a class="reference internal" href="#">Quickstart</a><ul>
+<li><a class="reference internal" href="#automatically-tuning-of-hyperparameters">Automatically Tuning of Hyperparameters</a></li>
+<li><a class="reference internal" href="#configuration-search-spaces">Configuration Search Spaces</a></li>
+<li><a class="reference internal" href="#hyperparameter-optimizers">Hyperparameter Optimizers</a></li>
+<li><a class="reference internal" href="#multiple-search-spaces">Multiple Search Spaces</a></li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -136,6 +148,208 @@
       
   <div class="section" id="quickstart">
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h1>
+<p>The following tutorial assumes that you have a basic understanding of how Sacred works (Experiments, Observers).
+In case you are unsure, have a look on the <a class="reference external" href="http://sacred.readthedocs.io/en/latest/">Sacred Quickstart Guide</a></p>
+<p>In this tutorial we will see how we can optimize the hyperparameters of a feed forward network trained on MNIST
+together with Labwatch and Sacred.
+We will use the MNIST example of <a class="reference external" href="https://keras.io/">keras</a> to implement the neural network but note that
+both Labwatch and Sacred are completely independent of which framework you use.
+You can find the whole source code as well as more examples
+<a class="reference external" href="https://github.com/automl/labwatch/blob/master/examples/keras_mnist_mlp.py">here</a></p>
+<div class="section" id="automatically-tuning-of-hyperparameters">
+<h2>Automatically Tuning of Hyperparameters<a class="headerlink" href="#automatically-tuning-of-hyperparameters" title="Permalink to this headline">¶</a></h2>
+<p>Sacred is a useful tool to keep track of all relevant information of your experiments such as hyperparameters,
+results, dependencies and so on.</p>
+<p>The following python code adapts the
+<a class="reference external" href="https://github.com/fchollet/keras/blob/master/examples/mnist_mlp.py">keras mnist example</a> to work with Sacred:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">keras</span>
+<span class="kn">from</span> <span class="nn">keras.datasets</span> <span class="kn">import</span> <span class="n">mnist</span>
+<span class="kn">from</span> <span class="nn">keras.models</span> <span class="kn">import</span> <span class="n">Sequential</span>
+<span class="kn">from</span> <span class="nn">keras.layers</span> <span class="kn">import</span> <span class="n">Dense</span><span class="p">,</span> <span class="n">Dropout</span>
+<span class="kn">from</span> <span class="nn">keras.optimizers</span> <span class="kn">import</span> <span class="n">RMSprop</span>
+
+<span class="kn">from</span> <span class="nn">sacred</span> <span class="kn">import</span> <span class="n">Experiment</span>
+
+<span class="n">ex</span> <span class="o">=</span> <span class="n">Experiment</span><span class="p">()</span>
+
+<span class="nd">@ex.config</span>
+<span class="k">def</span> <span class="nf">cfg</span><span class="p">():</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">128</span>
+    <span class="n">num_units_first_layer</span> <span class="o">=</span> <span class="mi">512</span>
+    <span class="n">num_units_second_layer</span> <span class="o">=</span> <span class="mi">512</span>
+    <span class="n">dropout_first_layer</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">dropout_second_layer</span> <span class="o">=</span> <span class="mf">0.2</span>
+    <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.001</span>
+
+
+<span class="nd">@ex.automain</span>
+<span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span>
+        <span class="n">num_units_first_layer</span><span class="p">,</span>
+        <span class="n">num_units_second_layer</span><span class="p">,</span>
+        <span class="n">dropout_first_layer</span><span class="p">,</span>
+        <span class="n">dropout_second_layer</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="p">):</span>
+
+    <span class="n">num_classes</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">epochs</span> <span class="o">=</span> <span class="mi">20</span>
+
+    <span class="c"># the data, shuffled and split between train and test sets</span>
+    <span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">),</span> <span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span> <span class="o">=</span> <span class="n">mnist</span><span class="o">.</span><span class="n">load_data</span><span class="p">()</span>
+
+    <span class="n">x_train</span> <span class="o">=</span> <span class="n">x_train</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">60000</span><span class="p">,</span> <span class="mi">784</span><span class="p">)</span>
+    <span class="n">x_test</span> <span class="o">=</span> <span class="n">x_test</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">784</span><span class="p">)</span>
+    <span class="n">x_train</span> <span class="o">=</span> <span class="n">x_train</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;float32&#39;</span><span class="p">)</span>
+    <span class="n">x_test</span> <span class="o">=</span> <span class="n">x_test</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s">&#39;float32&#39;</span><span class="p">)</span>
+    <span class="n">x_train</span> <span class="o">/=</span> <span class="mi">255</span>
+    <span class="n">x_test</span> <span class="o">/=</span> <span class="mi">255</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">x_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;train samples&#39;</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">x_test</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&#39;test samples&#39;</span><span class="p">)</span>
+
+    <span class="c"># convert class vectors to binary class matrices</span>
+    <span class="n">y_train</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_categorical</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+    <span class="n">y_test</span> <span class="o">=</span> <span class="n">keras</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_categorical</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Sequential</span><span class="p">()</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_units_first_layer</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s">&#39;relu&#39;</span><span class="p">,</span> <span class="n">input_shape</span><span class="o">=</span><span class="p">(</span><span class="mi">784</span><span class="p">,)))</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout_first_layer</span><span class="p">))</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Dense</span><span class="p">(</span><span class="n">num_units_second_layer</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s">&#39;relu&#39;</span><span class="p">))</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout_second_layer</span><span class="p">))</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">Dense</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s">&#39;softmax&#39;</span><span class="p">))</span>
+
+    <span class="n">model</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+
+    <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">loss</span><span class="o">=</span><span class="s">&#39;categorical_crossentropy&#39;</span><span class="p">,</span>
+                  <span class="n">optimizer</span><span class="o">=</span><span class="n">RMSprop</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">),</span>
+                  <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;accuracy&#39;</span><span class="p">])</span>
+
+    <span class="n">history</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span>
+                        <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+                        <span class="n">epochs</span><span class="o">=</span><span class="n">epochs</span><span class="p">,</span>
+                        <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                        <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">))</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">x_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Test loss:&#39;</span><span class="p">,</span> <span class="n">score</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">&#39;Test accuracy:&#39;</span><span class="p">,</span> <span class="n">score</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">results</span><span class="p">[</span><span class="s">&quot;optimization_target&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">score</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">results</span>
+</pre></div>
+</div>
+<p>In the dark old days you would probably now spend a lot of time to find the right setting for you hyperparameters by
+iteratively trying out different setting.</p>
+<p>Well, you&#8217;re are not alone with this problem and it is actually a common problem in machine learning.
+Recently a new subfield in machine learning (<a class="reference external" href="http://www.ml4aad.org/automl/">AutoML</a>)
+has emerged that tries to automated this procedure by casting it as an optimization problem. By now there exist several
+optimization methods that tackle the hyperparameter optimization problem.</p>
+<p>To make use of these methods in Labwatch, we fist have to instantiate a LabAssistant which will
+connect our Sacred experiment with the hyperparameter optimizer through a MongoDB:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">labwatch.assistant</span> <span class="kn">import</span> <span class="n">LabAssistant</span>
+<span class="kn">from</span> <span class="nn">labwatch.optimizers</span> <span class="kn">import</span> <span class="n">BayesianOptimization</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">LabAssistant</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s">&quot;labwatch_demo_keras&quot;</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">BayesianOptimization</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After that we have to define our configuration search space with the hyperparameter that we want to optimize.</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="nd">@a.searchspace</span>
+<span class="k">def</span> <span class="nf">search_space</span><span class="p">():</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="n">UniformNumber</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+                               <span class="n">upper</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>
+                               <span class="n">default</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+                               <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                               <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">num_units_first_layer</span> <span class="o">=</span> <span class="n">UniformNumber</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                                          <span class="n">upper</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
+                                          <span class="n">default</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+                                          <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                                          <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">num_units_second_layer</span> <span class="o">=</span> <span class="n">UniformNumber</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                                           <span class="n">upper</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span>
+                                           <span class="n">default</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+                                           <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                                           <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">dropout_first_layer</span> <span class="o">=</span> <span class="n">UniformFloat</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                       <span class="n">upper</span><span class="o">=.</span><span class="mi">99</span><span class="p">,</span>
+                                       <span class="n">default</span><span class="o">=.</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">dropout_second_layer</span> <span class="o">=</span> <span class="n">UniformFloat</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                        <span class="n">upper</span><span class="o">=.</span><span class="mi">99</span><span class="p">,</span>
+                                        <span class="n">default</span><span class="o">=.</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">UniformFloat</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mf">10e-6</span><span class="p">,</span>
+                                 <span class="n">upper</span><span class="o">=</span><span class="mf">10e-1</span><span class="p">,</span>
+                                 <span class="n">default</span><span class="o">=</span><span class="mf">10e-2</span><span class="p">,</span>
+                                 <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here, for each hyperparameter we define a prior distribution, default value, its type and if we want
+to adapt it on a log scale or not.</p>
+<p>We can use now Sacred&#8217;s command line interface to get a new configuration</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>python experiment.py with search_space
+</pre></div>
+</div>
+<p>Labwatch will now pass all already completed configurations that are stored in the database
+to the hyperparameter optimizer, let it suggest a new configuration and then run the experiment with this configuration.</p>
+</div>
+<div class="section" id="configuration-search-spaces">
+<h2>Configuration Search Spaces<a class="headerlink" href="#configuration-search-spaces" title="Permalink to this headline">¶</a></h2>
+<p>At this point is probably a good idea to talk a little bit more about configuration spaces.
+In general we distinguish between:</p>
+<blockquote>
+<div><ul class="simple">
+<li><em>categorical</em> hyperparameters that can take only discrete choices (e.g. {&#8216;a&#8217;, &#8216;b&#8217;, &#8216;c&#8217;})</li>
+<li><em>numerical</em> hyperparameters that can have either integer or continuous values.</li>
+</ul>
+</div></blockquote>
+<p>Furthermore, Labwatch also allows you to define prior distributions (Gaussian, Uniform) for your hyperparameters.
+Some hyperparameter optimizers such as for instance random search can exploit this prior knowledge to
+suggest better configurations from early on.
+In the case that you do not have a prior about you hyperparameter, just use a uniform distribution which is
+simply defined by an upper and lower bound.</p>
+</div>
+<div class="section" id="hyperparameter-optimizers">
+<h2>Hyperparameter Optimizers<a class="headerlink" href="#hyperparameter-optimizers" title="Permalink to this headline">¶</a></h2>
+<p>Labwatch offers a simple interface to a variety of state-of-the-art hyperparameter optimization methods.
+Note that every optimizer has its own properties and might not work for all use cases.
+The following list will give you a brief overview of the optimizer that can be used with labwatch and in which
+setting they would work. For more details we refer to the corresponding papers:</p>
+<blockquote>
+<div><ul class="simple">
+<li><strong>Random search</strong> is probably the simplest hyperparameter optimization method. It just samples hyperparameter
+configurations from the prior. The nice thing with random search is that it works in all search
+spaces and is easy to parallelize.</li>
+<li><strong>Bayesian optimization</strong> fits a probabilistic model to capture the current believe of the objective function.
+To select a new configuration, it use an utility function that only depend on the
+probabilistic model to trade off exploration and exploitation. Here we use Gaussian process to model our objective
+function, which work well in low (&lt;10) dimensional continuous input spaces but do not work with categorical
+hyperparameters.</li>
+<li><strong>SMAC</strong> is also a Bayesian optimization method but uses random forest instead of Gaussian processes to model
+the objective function. It works in high dimensional mixed continuous and discret input space but will be
+be probably outperformed by GP-based Bayesian optimization in the low dimensional continuous space.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="multiple-search-spaces">
+<h2>Multiple Search Spaces<a class="headerlink" href="#multiple-search-spaces" title="Permalink to this headline">¶</a></h2>
+<p>Sometimes it is quite convenient to have multiple different search space, for instance if you want to optimize
+first only a subset of your hyperparameters and keep the others fixed.</p>
+<p>Labwatch allows to have different search space as long as they have different names. For instance in our running
+example if we want to optimize only the learning rate and batch size we can define a second search space:</p>
+<div class="code python highlight-python"><div class="highlight"><pre><span class="nd">@a.searchspace</span>
+<span class="k">def</span> <span class="nf">small_search_space</span><span class="p">():</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="n">UniformNumber</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">UniformFloat</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mf">10e-3</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">10e-2</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">10e-2</span><span class="p">,</span> <span class="n">log_scale</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If we now call our experiment via:</p>
+<div class="code bash highlight-python"><div class="highlight"><pre>python experiment.py with small_search_space
+</pre></div>
+</div>
+<p>we get a new configuration for the learning rate and the batch where as all other hyperparameter are set to the values
+defined in the config cfg().</p>
+<p>Note: To prevent inconsistencies and to not fool the optimizer, Labwatch passes only completed configurations that were
+drawn from this search space to the optimizer. This means that our optimizer will not use the information from previous
+experiment with the other search space.</p>
+</div>
 </div>
 
 
