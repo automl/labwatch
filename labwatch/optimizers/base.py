@@ -1,9 +1,7 @@
 
 import numpy as np
 
-from labwatch.converters.convert_to_configspace import (
-    sacred_space_to_configspace, sacred_config_to_configspace,
-    configspace_config_to_sacred)
+from labwatch.converters.convert_to_configspace import sacred_config_to_configspace
 
 
 class Optimizer(object):
@@ -48,8 +46,6 @@ class Optimizer(object):
         runs: list[dict]
             List of dictionaries containing additional run information.
         """
-        # raise NotImplementedError("update called on base class Optimizer. "
-        #                           "Use a derived class instead!")
 
         converted_configs = [
             sacred_config_to_configspace(self.config_space, config)
