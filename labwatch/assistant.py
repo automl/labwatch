@@ -15,7 +15,7 @@ from sacred.commandline_options import QueueOption
 from sacred.observers.mongo import MongoObserver, MongoDbOption
 from sacred.utils import create_basic_stream_logger
 
-from labwatch.optimizers import RandomSearch
+from labwatch.optimizers.random_search import RandomSearch
 from labwatch.searchspace import SearchSpace, build_searchspace, fill_in_values, \
     get_values_from_config
 from labwatch.utils.types import InconsistentSpace
@@ -300,7 +300,6 @@ class LabAssistant(object):
         #     sort=[("start_time", 1)]
         # )
         #
-        # TODO: Just take configs from the given search space
 
         # Take all jobs that are finished and were run with a config from this searchspace
         completed_jobs = self.runs.find(
@@ -332,8 +331,8 @@ class LabAssistant(object):
         if self.search_space is None:
             raise ValueError("LabAssistant sample_suggestion called "
                              "without a defined search space")
-        if self.optimizer.needs_updates():
-            self.update_optimizer()
+        #if self.optimizer.needs_updates():
+        self.update_optimizer()
 
         suggestion = self.optimizer.suggest_configuration()
         values = {self.search_space.parameters[k]['uid']: v for k, v in suggestion.items() if k in self.search_space.parameters}
