@@ -91,22 +91,3 @@ class BayesianOptimization(Optimizer):
         result = configspace_config_to_sacred(next_config)
 
         return result
-
-    def update(self, configs, costs, runs):
-        converted_configs = [
-            sacred_config_to_configspace(self.config_space, config)
-            for config in configs]
-
-        for (config, cost) in zip(converted_configs, costs):
-            # Maps configuration to [0, 1]^D space
-            x = config.get_array()
-
-            if self.X is None and self.y is None:
-                self.X = np.array([x])
-                self.y = np.array([cost])
-            elif x not in self.X:
-                self.X = np.append(self.X, x[np.newaxis, :], axis=0)
-                self.y = np.append(self.y, np.array([cost]), axis=0)
-
-    def needs_updates(self):
-        return True

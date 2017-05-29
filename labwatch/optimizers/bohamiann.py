@@ -14,8 +14,7 @@ from robo.acquisition_functions.log_ei import LogEI
 
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
-    sacred_space_to_configspace, sacred_config_to_configspace,
-    configspace_config_to_sacred)
+    sacred_space_to_configspace, configspace_config_to_sacred)
 
 
 class Bohamiann(Optimizer):
@@ -68,6 +67,3 @@ class Bohamiann(Optimizer):
         result = configspace_config_to_sacred(next_config)
 
         return result
-
-    def needs_updates(self):
-        return True
