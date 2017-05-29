@@ -1,9 +1,18 @@
 
+import numpy as np
+
+from labwatch.converters.convert_to_configspace import (
+    sacred_space_to_configspace, sacred_config_to_configspace,
+    configspace_config_to_sacred)
+
+
 class Optimizer(object):
     """Defines the interface for all optimizers."""
 
     def __init__(self, config_space):
         self.config_space = config_space
+        self.X = None
+        self.y = None
 
     def get_random_config(self):
         return self.config_space.sample()
@@ -39,8 +48,23 @@ class Optimizer(object):
         runs: list[dict]
             List of dictionaries containing additional run information.
         """
-        raise NotImplementedError("update called on base class Optimizer. "
-                                  "Use a derived class instead!")
+        # raise NotImplementedError("update called on base class Optimizer. "
+        #                           "Use a derived class instead!")
+
+        converted_configs = [
+            sacred_config_to_configspace(self.config_space, config)
+            for config in configs]
+
+        for (config, cost) in zip(converted_configs, costs):
+            # Maps configuration to [0, 1]^D space
+            x = config.get_array()
+
+            if self.X is None and self.y is None:
+                self.X = np.array([x])
+                self.y = np.array([cost])
+            elif x not in self.X:
+                self.X = np.append(self.X, x[np.newaxis, :], axis=0)
+                self.y = np.append(self.y, np.array([cost]), axis=0)
 
     def needs_updates(self):
         """

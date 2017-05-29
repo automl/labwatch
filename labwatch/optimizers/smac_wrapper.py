@@ -9,6 +9,7 @@ from smac.scenario.scenario import Scenario
 from smac.tae.execute_ta_run import StatusType
 from smac.runhistory.runhistory import RunHistory
 from smac.runhistory.runhistory2epm import RunHistory2EPM4Cost
+from smac.optimizer.objective import average_cost
 
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
@@ -58,9 +59,9 @@ class LabwatchScenario(Scenario):
         self.deterministic = False
 
 
-class SMAC3(Optimizer):
+class SMAC(Optimizer):
     def __init__(self, config_space, seed=None):
-        super(SMAC3, self).__init__(config_space)
+        super(SMAC, self).__init__(config_space)
         if seed is None:
             self.seed = np.random.randint(0, 10000)
         else:
@@ -69,14 +70,14 @@ class SMAC3(Optimizer):
         self.sacred_space = config_space
         self.config_space = sacred_space_to_configspace(config_space)
         self.scenario = LabwatchScenario(self.config_space, None)
-        self.run_history = RunHistory()
+        self.run_history = RunHistory(aggregate_func=average_cost)
         self.smac = SMBO(self.scenario, np.random.RandomState(seed))
         self.num_params = len(self.config_space.get_hyperparameters())
         self.rh2EPM = RunHistory2EPM4Cost(scenario=self.scenario,
-                                     num_params=self.num_params,
-                                     success_states=None,
-                                     impute_censored_data=False,
-                                     impute_state=None)
+                                          num_params=self.num_params,
+                                          success_states=None,
+                                          impute_censored_data=False,
+                                          impute_state=None)
 
     def suggest_configuration(self):
         if self.run_history.empty():
