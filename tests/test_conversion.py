@@ -3,7 +3,6 @@
 from __future__ import division, print_function, unicode_literals
 import json
 import pytest
-from sacred.config import ConfigScope
 
 from labwatch.hyperparameters import *
 from labwatch.searchspace import build_searchspace, collect_hyperparameters, \
