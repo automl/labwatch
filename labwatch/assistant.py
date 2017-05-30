@@ -75,12 +75,14 @@ class LabAssistant(object):
 
         Parameters
         ----------
-        experiment : object
+        experiment : sacred.Experiment
             The (sacred) experiment that is going to be optimized.
         database_name : str
-            The name of the database where all information about the dataset are saved.
+            The name of the database where all information about the runs 
+            are saved.
         optimizer: object, optional
-            Specifies which optimizer is used to suggest a new hyperparameter configuration
+            Specifies which optimizer is used to suggest a new hyperparameter
+            configuration
         prefix: str, optional
             Additional prefix for the database
         always_inject_observer: bool, optional
@@ -88,6 +90,7 @@ class LabAssistant(object):
         """
 
         self.ex = experiment
+        self.ex.option_hook(self._option_hook)
 
         self.db_name = database_name
         self.url = url
@@ -100,28 +103,44 @@ class LabAssistant(object):
         self.always_inject_observer = always_inject_observer
         self.optimizer_class = optimizer
         self.block_time = 1000  # TODO: what value should this be?
-        # if self.db is not None:
-        #     self._init_db()
-        # else:
-        #     self.runs = None
-        #     self.db_searchspace = None
-        #     self.optimizer = None
         # remember for which experiments we have config hooks setup
         self.observer_mapping = dict()
         # mark that we have newer looked for finished runs
         self.known_jobs = set()
         self.last_checked = None
         self.search_space = None
-        # then inject an observer if it is required
-        #if self.db is not None and self.always_inject_observer:
-        #self._inject_observer(self.ex)
+        self.mongo_observer = None
+
+    def _option_hook(self, options):
+        mongo_opt = options.get(MongoDbOption.get_flag())
+        if mongo_opt is not None:
+            class FakeRun(object):
+                observers = []
+
+            fake_run = FakeRun()
+            MongoDbOption.apply(mongo_opt, fake_run)
+            self.mongo_observer = fake_run.observers[0]
+        else:
+            self.mongo_observer = None
 
     def _init_db(self):
-        client = pymongo.MongoClient(self.url)
-
-        self.db = client[self.db_name]
-        self.runs = self.db[self.prefix]
+        if self.db_name is None:
+            if self.mongo_observer is None:
+                mongo_observers = sorted([mo for mo in self.ex.observers
+                                          if isinstance(mo, MongoObserver)],
+                                         key=lambda x: x.priority)
+                if not mongo_observers:
+                    raise RuntimeError('No mongo observer found!')
+                self.mongo_observer = mongo_observers[-1]
+        else:
+            self.mongo_observer = MongoObserver.create(db_name=self.db_name,
+                                                       collection=self.prefix,
+                                                       url=self.url)
+            self._inject_observer()
+        self.runs = self.mongo_observer.runs
+        self.db = self.runs.database
         self.db_searchspace = self.db.search_space
+
         for manipulator in SON_MANIPULATORS:
             self.db.add_son_manipulator(manipulator)
 
@@ -146,7 +165,8 @@ class LabAssistant(object):
         values = get_values_from_config(config, self.search_space.parameters)
         return values
 
-    def _search_space_wrapper(self, space, space_name, fixed=None, fallback=None, preset=None):
+    def _search_space_wrapper(self, space, space_name, fixed=None,
+                              fallback=None, preset=None):
         # This function pretends to be a ConfigScope for a named_config
         # but under the hood it is getting a suggestion from the optimizer
 
@@ -156,9 +176,6 @@ class LabAssistant(object):
         # Establish connection to database
         if self.db is None:
             self._init_db()
-
-        # TODO: Get MongoObserver from experiment
-        self._inject_observer(self.ex)
 
         # Check the validity of this search space
         self._verify_and_init_searchspace(sp)
@@ -194,27 +211,13 @@ class LabAssistant(object):
 
         return final_config
 
-    def _inject_observer(self, ex):
-        if self.db is None:
+    def _inject_observer(self):
+        if self.mongo_observer is None:
             raise ValueError("LabAssistant has no database "
                              "but you called inject_observer")
-        if ex in self.observer_mapping:
-            # we already have an observer for this experiment
-            return
-        # otherwise create a new one
-        fs = gridfs.GridFS(self.db, collection=self.prefix)
-        observer = MongoObserver(self.runs, fs)
-        ex.observers.append(observer)
-        self.observer_mapping[ex] = observer
-        # warn if we have two observers writing to the same database
-        collection_names = set()
-        for observer in ex.observers:
-            name = observer.runs.name
-            if name in collection_names:
-                self.logger.warn("Multiple MongoObservers with the same "
-                                 "collection name, make sure they are writing "
-                                 "into different databases!")
-            collection_names.add(name)
+        if self.mongo_observer not in self.ex.observers:
+            self.ex.observers.append(self.mongo_observer)
+
 
     def _dequeue_run(self, remaining_time, sleep_time):
         criterion = {'status': 'QUEUED'}
@@ -353,7 +356,7 @@ class LabAssistant(object):
         if config is None:
             raise RuntimeError("None is not an acceptable config!")
         #config = self._clean_config(config)
-        self._inject_observer(self.ex)
+        self._inject_observer()
         if command is None:
             res = self.ex.run(config_updates=config)
         else:
@@ -365,7 +368,7 @@ class LabAssistant(object):
         config = self._clean_config(self.get_suggestion())
         if config is None:
             raise RuntimeError("Optimizer did not return a config!")
-        self._inject_observer(self.ex)
+        self._inject_observer()
         res = self.ex.run_command(command,
                                   config_updates=config,
                                   args={"--queue": QueueOption()})
@@ -405,7 +408,7 @@ class LabAssistant(object):
             self.ex.observers.pop()
             # and inject the default one
             if had_matching_observer:
-                self._inject_observer(self.ex)
+                self._inject_observer()
             return res
 
     # ############################## Decorators ###############################
