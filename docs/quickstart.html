@@ -246,12 +246,12 @@ optimization methods that tackle the hyperparameter optimization problem.</p>
 <p>To make use of these methods in Labwatch, we fist have to instantiate a LabAssistant which will
 connect our Sacred experiment with the hyperparameter optimizer through a MongoDB:</p>
 <div class="code python highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">labwatch.assistant</span> <span class="kn">import</span> <span class="n">LabAssistant</span>
-<span class="kn">from</span> <span class="nn">labwatch.optimizers</span> <span class="kn">import</span> <span class="n">BayesianOptimization</span>
+<span class="kn">from</span> <span class="nn">labwatch.optimizers.random_search</span> <span class="kn">import</span> <span class="n">RandomSearch</span>
 
-<span class="n">a</span> <span class="o">=</span> <span class="n">LabAssistant</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s">&quot;labwatch_demo_keras&quot;</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">BayesianOptimization</span><span class="p">)</span>
+<span class="n">a</span> <span class="o">=</span> <span class="n">LabAssistant</span><span class="p">(</span><span class="n">ex</span><span class="p">,</span> <span class="s">&quot;labwatch_demo_keras&quot;</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="n">RandomSearch</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>After that we have to define our configuration search space with the hyperparameter that we want to optimize.</p>
+<p>After that we have to define our configuration search space with the hyperparameters that we want to optimize.</p>
 <div class="code python highlight-python"><div class="highlight"><pre><span class="nd">@a.searchspace</span>
 <span class="k">def</span> <span class="nf">search_space</span><span class="p">():</span>
     <span class="n">batch_size</span> <span class="o">=</span> <span class="n">UniformNumber</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>

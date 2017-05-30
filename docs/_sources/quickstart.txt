@@ -112,11 +112,11 @@ connect our Sacred experiment with the hyperparameter optimizer through a MongoD
 .. code:: python
 
     from labwatch.assistant import LabAssistant
-    from labwatch.optimizers import BayesianOptimization
+    from labwatch.optimizers.random_search import RandomSearch
 
-    a = LabAssistant(ex, "labwatch_demo_keras", optimizer=BayesianOptimization)
+    a = LabAssistant(ex, "labwatch_demo_keras", optimizer=RandomSearch)
 
-After that we have to define our configuration search space with the hyperparameter that we want to optimize.
+After that we have to define our configuration search space with the hyperparameters that we want to optimize.
 
 .. code:: python
 
