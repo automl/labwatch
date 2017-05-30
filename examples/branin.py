@@ -9,7 +9,7 @@ import numpy as np
 
 
 ex = Experiment()
-a = LabAssistant(ex, "labwatch_demo")
+a = LabAssistant(ex)
 
 
 @ex.config
@@ -17,7 +17,7 @@ def cfg():
     x = (0., 5.)
 
 
-@a.searchspace
+@a.search_space
 def search_space():
     x = (UniformFloat(-5, 10), UniformFloat(0, 15))
 

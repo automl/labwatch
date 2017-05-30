@@ -16,9 +16,8 @@ from sacred.observers.mongo import MongoObserver, MongoDbOption
 from sacred.utils import create_basic_stream_logger
 
 from labwatch.optimizers.random_search import RandomSearch
-from labwatch.searchspace import SearchSpace, build_searchspace, fill_in_values, \
+from labwatch.searchspace import SearchSpace, build_search_space, fill_in_values, \
     get_values_from_config
-from labwatch.utils.types import InconsistentSpace
 
 from labwatch.utils.version_checks import (check_dependencies, check_sources,
                                            check_names)
@@ -141,25 +140,25 @@ class LabAssistant(object):
             self._inject_observer()
         self.runs = self.mongo_observer.runs
         self.db = self.runs.database
-        self.db_searchspace = self.db.search_space
+        self.db_search_space = self.db.search_space
 
         for manipulator in SON_MANIPULATORS:
             self.db.add_son_manipulator(manipulator)
 
-    def _verify_and_init_searchspace(self, space_from_ex):
-        # Get searchspace from the database or from the experiment
+    def _verify_and_init_search_space(self, space_from_ex):
+        # Get a search space from the database or from the experiment
 
         # Check if search space is already in the database
         # (Note: We don't have any id yet that's why we have to loop over all entries)
         in_db = False
-        if self.db_searchspace.count() > 0:
-            for sp in self.db_searchspace.find():
+        if self.db_search_space.count() > 0:
+            for sp in self.db_search_space.find():
                 if sp == space_from_ex:
                     self.search_space = sp
                     in_db = True
         if not in_db:
-            sp_id = self.db_searchspace.insert(space_from_ex.to_json())
-            self.search_space = self.db_searchspace.find_one({"_id": sp_id})
+            sp_id = self.db_search_space.insert(space_from_ex.to_json())
+            self.search_space = self.db_search_space.find_one({"_id": sp_id})
 
         return self.search_space
 
@@ -173,14 +172,14 @@ class LabAssistant(object):
         # but under the hood it is getting a suggestion from the optimizer
 
         self.search_space_name = space_name
-        sp = build_searchspace(space)
+        sp = build_search_space(space)
 
         # Establish connection to database
         if self.db is None:
             self._init_db()
 
         # Check the validity of this search space
-        self._verify_and_init_searchspace(sp)
+        self._verify_and_init_search_space(sp)
 
         # Create the optimizer
         if self.optimizer_class is not None:
@@ -262,8 +261,8 @@ class LabAssistant(object):
     def set_database(self, database):
         self.db = database
         self._init_db()
-        # we need to verify the searchspace again
-        self._verify_and_init_searchspace(self.search_space)
+        # we need to verify the search space again
+        self._verify_and_init_search_space(self.search_space)
     
     def update_optimizer(self):
         if self.db is None:
@@ -284,7 +283,7 @@ class LabAssistant(object):
         # )
         #
 
-        # Take all jobs that are finished and were run with a config from this searchspace
+        # Take all jobs that are finished and were run with a config from this search space
         completed_jobs = self.runs.find(
             {
                 'heartbeat': {'$gte': self.last_checked},
@@ -414,12 +413,12 @@ class LabAssistant(object):
 
     # ############################## Decorators ###############################
 
-    def searchspace(self, function):
+    def search_space(self, function):
         """Decorator for creating a searchspace definition from a function."""
         #if self.search_space is not None:
-        #    raise RuntimeError('Only one searchspace allowed per Assistant')
+        #    raise RuntimeError('Only one search space allowed per Assistant')
 
-        # space = build_searchspace(function)
+        # space = build_search_space(function)
         #
         # #TODO: Get MongoObserver from experiment
         #
@@ -427,13 +426,13 @@ class LabAssistant(object):
         # self._init_db()
         #
         # # Check the validity of this search space
-        # self._verify_and_init_searchspace(space)
+        # self._verify_and_init_search_space(space)
 
         # Get a configuration from the optimizer and add it as a named config
-        searchspace_wrapper = functools.partial(self._search_space_wrapper,
+        search_space_wrapper = functools.partial(self._search_space_wrapper,
                                                 space=function,
                                                 space_name=function.__name__)
-        self.ex._add_named_config(function.__name__, searchspace_wrapper)
+        self.ex._add_named_config(function.__name__, search_space_wrapper)
 
 
 def convert_result(result):

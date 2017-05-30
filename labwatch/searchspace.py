@@ -138,8 +138,8 @@ class SearchSpace(object):
 
 
 # decorator
-def build_searchspace(function):
-    # abuse configscope to parse searchspace definitions
+def build_search_space(function):
+    # abuse configscope to parse search space definitions
     scope = ConfigScope(function)
     space_dict = dict(scope())
 
