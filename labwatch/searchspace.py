@@ -6,7 +6,7 @@ import re
 
 from sacred.config import ConfigScope
 from sacred.utils import join_paths
-from labwatch.hyperparameters import Parameter, ConditionResult
+from labwatch.hyperparameters import Parameter, ConditionResult, Categorical
 from labwatch.hyperparameters import decode_param_or_op
 from labwatch.utils.types import InconsistentSpace, ParamValueExcept
 
@@ -27,8 +27,12 @@ class SearchSpace(object):
         self.conditions = []
         self.non_conditions = []
         self.parameters = {}
+        self.has_categorical = False
         # first simply insert all
         for param in params:
+            if isinstance(param, Categorical):
+                self.has_categorical = True
+
             assert(isinstance(param, Parameter))
             self.parameters[param['name']] = param
             if isinstance(param, ConditionResult):

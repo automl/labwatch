@@ -45,3 +45,7 @@ class InconsistentSpace(Exception):
 
 class ParamInconsistent(Exception):
     pass
+
+
+class SearchSpaceNotSupported(Exception):
+    pass

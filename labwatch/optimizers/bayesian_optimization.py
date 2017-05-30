@@ -15,15 +15,17 @@ from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
 from robo.initial_design.init_random_uniform import init_random_uniform
 
 from labwatch.optimizers.base import Optimizer
-from labwatch.converters.convert_to_configspace import (
-    sacred_space_to_configspace, sacred_config_to_configspace,
-    configspace_config_to_sacred)
+from labwatch.converters.convert_to_configspace import sacred_space_to_configspace, configspace_config_to_sacred
+from labwatch.utils.types import SearchSpaceNotSupported
 
 
 class BayesianOptimization(Optimizer):
 
     def __init__(self, config_space, burnin=100, chain_length=200,
                  n_hypers=20):
+
+        if config_space.has_categorical:
+            raise SearchSpaceNotSupported("GP-based Bayesian optimization only supports numerical hyperparameters.")
 
         super(BayesianOptimization, self).__init__(config_space)
         self.rng = np.random.RandomState(np.random.seed())
