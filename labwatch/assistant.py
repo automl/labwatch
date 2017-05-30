@@ -125,28 +125,6 @@ class LabAssistant(object):
         for manipulator in SON_MANIPULATORS:
             self.db.add_son_manipulator(manipulator)
 
-    def _parse_db_from_args(self, args, logger):
-        db_flag = "--" + MongoDbOption.get_flag()[1]
-        if args.get(db_flag) is not None:
-            logger.info("Using db provided via {} flag".format(db_flag))
-            db_name = args[db_flag]
-            c = pymongo.MongoClient()
-            self.db = c[db_name]
-            # init database
-            self._init_db()
-            # verify searchspace against database
-            try:
-                self._verify_and_init_searchspace(self.search_space)
-                return True
-            except:
-                logger.warn("Tried to use db provided via args but caught an "
-                            "exception", exc_info=True)
-                self.db = None
-                self.runs = None
-                self.db_searchspace = None
-                self.optimizer = None
-        return False
-
     def _verify_and_init_searchspace(self, space_from_ex):
         # Get searchspace from the database or from the experiment
 
