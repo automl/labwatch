@@ -112,7 +112,7 @@ class LabAssistant(object):
         # mark that we have newer looked for finished runs
         self.known_jobs = set()
         self.last_checked = None
-        self.search_space = None
+        self.current_search_space = None
         self.mongo_observer = None
 
     def _option_hook(self, options):
@@ -154,16 +154,16 @@ class LabAssistant(object):
         if self.db_search_space.count() > 0:
             for sp in self.db_search_space.find():
                 if sp == space_from_ex:
-                    self.search_space = sp
+                    self.current_search_space = sp
                     in_db = True
         if not in_db:
             sp_id = self.db_search_space.insert(space_from_ex.to_json())
-            self.search_space = self.db_search_space.find_one({"_id": sp_id})
+            self.current_search_space = self.db_search_space.find_one({"_id": sp_id})
 
-        return self.search_space
+        return self.current_search_space
 
     def _clean_config(self, config):
-        values = get_values_from_config(config, self.search_space.parameters)
+        values = get_values_from_config(config, self.current_search_space.parameters)
         return values
 
     def _search_space_wrapper(self, space, space_name, fixed=None,
@@ -171,7 +171,7 @@ class LabAssistant(object):
         # This function pretends to be a ConfigScope for a named_config
         # but under the hood it is getting a suggestion from the optimizer
 
-        self.search_space_name = space_name
+        self.current_search_space_name = space_name
         sp = build_search_space(space)
 
         # Establish connection to database
@@ -186,10 +186,10 @@ class LabAssistant(object):
             if not self.db:
                 import warnings
                 warnings.warn('No database. Falling back to random search')
-                self.optimizer = RandomSearch(self.search_space)
-            self.optimizer = self.optimizer_class(self.search_space)
+                self.optimizer = RandomSearch(self.current_search_space)
+            self.optimizer = self.optimizer_class(self.current_search_space)
         else:
-            self.optimizer = RandomSearch(self.search_space)
+            self.optimizer = RandomSearch(self.current_search_space)
 
         fixed = fixed or {}
         final_config = dict(preset or {})
@@ -197,7 +197,7 @@ class LabAssistant(object):
         # ConfigScope, but here it is not supported.
         assert not fallback, "{}".format(fallback)
         # ensure we have a search space definition
-        if self.search_space is None:
+        if self.current_search_space is None:
             raise ValueError("LabAssistant search_space_wrapper called but "
                              "there is no search space definition")
 
@@ -205,7 +205,7 @@ class LabAssistant(object):
         values = self.get_suggestion()
 
         # Create configuration object
-        config = fill_in_values(self.search_space.search_space, values,
+        config = fill_in_values(self.current_search_space.search_space, values,
                                 fill_by='uid')
         final_config.update(config)
         final_config.update(fixed)
@@ -262,7 +262,7 @@ class LabAssistant(object):
         self.db = database
         self._init_db()
         # we need to verify the search space again
-        self._verify_and_init_search_space(self.search_space)
+        self._verify_and_init_search_space(self.current_search_space)
     
     def update_optimizer(self):
         if self.db is None:
@@ -288,7 +288,7 @@ class LabAssistant(object):
             {
                 'heartbeat': {'$gte': self.last_checked},
                 'status': 'COMPLETED',
-                'meta.options.UPDATE': self.search_space_name
+                'meta.options.UPDATE': self.current_search_space_name
             }
         )
         # update the last checked to the oldest one that is still running
@@ -310,14 +310,14 @@ class LabAssistant(object):
                         upsert=False)
 
     def get_suggestion(self):
-        if self.search_space is None:
+        if self.current_search_space is None:
             raise ValueError("LabAssistant sample_suggestion called "
                              "without a defined search space")
         #if self.optimizer.needs_updates():
         self.update_optimizer()
 
         suggestion = self.optimizer.suggest_configuration()
-        values = {self.search_space.parameters[k]['uid']: v for k, v in suggestion.items() if k in self.search_space.parameters}
+        values = {self.current_search_space.parameters[k]['uid']: v for k, v in suggestion.items() if k in self.current_search_space.parameters}
         return values
 
     def get_current_best(self, return_job_info=False):
@@ -342,7 +342,7 @@ class LabAssistant(object):
         # get config from optimizer
         #return self.run_config(self.get_suggestion(), command)
         values = self.get_suggestion()
-        config = fill_in_values(self.search_space.search_space, values, fill_by='uid')
+        config = fill_in_values(self.current_search_space.search_space, values, fill_by='uid')
 
         return self.run_config(config, command)
 
@@ -430,8 +430,8 @@ class LabAssistant(object):
 
         # Get a configuration from the optimizer and add it as a named config
         search_space_wrapper = functools.partial(self._search_space_wrapper,
-                                                space=function,
-                                                space_name=function.__name__)
+                                                 space=function,
+                                                 space_name=function.__name__)
         self.ex._add_named_config(function.__name__, search_space_wrapper)
 
 

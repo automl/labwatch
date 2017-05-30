@@ -8,7 +8,7 @@ from keras.optimizers import RMSprop
 
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
-from labwatch.hyperparameters import UniformNumber, UniformFloat
+from labwatch.hyperparameters import UniformInt, UniformFloat
 from labwatch.optimizers import BayesianOptimization
 
 ex = Experiment()
@@ -25,18 +25,17 @@ def cfg():
     learning_rate = 0.001
 
 
-
 @a.search_space
 def small_search_space():
-    batch_size = UniformNumber(lower=32, upper=64, default=32, type=int, log_scale=True)
+    batch_size = UniformInt(lower=32, upper=64, default=32, log_scale=True)
     learning_rate = UniformFloat(lower=10e-3, upper=10e-2, default=10e-2, log_scale=True)
 
 
 @a.search_space
 def large_search_space():
-    batch_size = UniformNumber(lower=8, upper=64, default=32, type=int, log_scale=True)
-    num_units_first_layer = UniformNumber(lower=16, upper=1024, default=32, type=int, log_scale=True)
-    num_units_second_layer = UniformNumber(lower=16, upper=1024, default=32, type=int, log_scale=True)
+    batch_size = UniformInt(lower=8, upper=64, default=32, log_scale=True)
+    num_units_first_layer = UniformInt(lower=16, upper=1024, default=32, log_scale=True)
+    num_units_second_layer = UniformInt(lower=16, upper=1024, default=32, log_scale=True)
     dropout_first_layer = UniformFloat(lower=0, upper=.99, default=.2)
     dropout_second_layer = UniformFloat(lower=0, upper=.99, default=.2)
     learning_rate = UniformFloat(lower=10e-6, upper=10e-1, default=10e-2, log_scale=True)
