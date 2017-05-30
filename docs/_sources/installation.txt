@@ -8,6 +8,6 @@ To install the current version of labwatch from git execute the following comman
 
   git clone https://github.com/automl/labwatch.git
   cd labwatch
-  python setup.py install
+  pip install .
 
 
