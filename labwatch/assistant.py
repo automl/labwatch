@@ -30,6 +30,11 @@ if not opt.has_pymongo:
 SON_MANIPULATORS = []
 
 
+class FakeRun(object):
+    def __init__(self):
+        self.observers = []
+
+
 class SearchSpaceManipulator(pymongo.son_manipulator.SONManipulator):
 
     def transform_incoming(self, son, collection):
@@ -114,9 +119,6 @@ class LabAssistant(object):
     def _option_hook(self, options):
         mongo_opt = options.get(MongoDbOption.get_flag())
         if mongo_opt is not None:
-            class FakeRun(object):
-                observers = []
-
             fake_run = FakeRun()
             MongoDbOption.apply(mongo_opt, fake_run)
             self.mongo_observer = fake_run.observers[0]
