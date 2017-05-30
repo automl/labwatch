@@ -16,7 +16,8 @@ requires = [
     'numpy >= 1.7',
     'sacred',
     'pymongo',
-    'ConfigSpace'
+    'ConfigSpace',
+    'gridfs'
 ]
 
 setup(name='labwatch',
