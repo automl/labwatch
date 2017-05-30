@@ -67,7 +67,7 @@ class LabAssistant(object):
                  database_name=None,
                  url="localhost",
                  optimizer=None,
-                 prefix='default',
+                 prefix='runs',
                  always_inject_observer=False):
 
         """
@@ -120,8 +120,8 @@ class LabAssistant(object):
         client = pymongo.MongoClient(self.url)
 
         self.db = client[self.db_name]
-        self.runs = self.db[self.prefix].runs
-        self.db_searchspace = self.db[self.prefix].search_space
+        self.runs = self.db[self.prefix]
+        self.db_searchspace = self.db.search_space
         for manipulator in SON_MANIPULATORS:
             self.db.add_son_manipulator(manipulator)
 
