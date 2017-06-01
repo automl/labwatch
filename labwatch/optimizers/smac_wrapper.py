@@ -75,9 +75,12 @@ class SMAC(Optimizer):
                                        rng=self.rng)
 
     def suggest_configuration(self):
-        list = self.solver.solver.choose_next(self.X, self.y[:, None])
+        if self.X is None and self.y is None:
+            next_config = self.config_space.sample_configuration()
 
-        next_config = list[0]
+        else:
+            l = list(self.solver.solver.choose_next(self.X, self.y[:, None], incumbent_value=np.min(self.y)))
+            next_config = l[0]
 
         result = configspace_config_to_sacred(next_config)
 
