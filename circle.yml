@@ -18,8 +18,10 @@ dependencies:
   # Various dependencies
   pre:
     - sudo apt-get update
+    - sudo apt-get install python-dev
     - sudo apt-get install python-sphinx
     - sudo pip install sphinx_bootstrap_theme
+    - sudo pip install .
   override:
     - echo "Sphinx installed"
 test:
