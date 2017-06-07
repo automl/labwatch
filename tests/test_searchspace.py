@@ -3,7 +3,7 @@
 from __future__ import division, print_function, unicode_literals
 
 from labwatch.hyperparameters import *
-from labwatch.searchspace import build_searchspace
+from labwatch.searchspace import build_search_space
 
 import pprint
 
