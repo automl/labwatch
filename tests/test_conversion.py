@@ -5,7 +5,7 @@ import json
 import pytest
 
 from labwatch.hyperparameters import *
-from labwatch.searchspace import build_searchspace, collect_hyperparameters, \
+from labwatch.searchspace import build_search_space, collect_hyperparameters, \
     fill_in_values
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, sacred_config_to_configspace,
