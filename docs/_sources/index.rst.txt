@@ -6,10 +6,15 @@
 Welcome to labwatch's documentation!
 ====================================
 
+Labwatch is an extension to `Sacred <https://github.com/IDSIA/sacred>`_ for automated hyperparameter optimization
+of machine learning algorithm. It implements an interface to state-of-the-art hyperparameter optimization methods
+such as `RoBO <https://github.com/automl/RoBO>`_ or `SMAC <https://github.com/automl/SMAC3>`_.
+
 
 
 Contents
 --------
+
 .. toctree::
    :maxdepth: 2
 
