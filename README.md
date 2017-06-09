@@ -1,6 +1,6 @@
 # labwatch
 [![Build Status](https://travis-ci.org/automl/labwatch.svg?branch=master)](https://travis-ci.org/automl/labwatch)
-[![Code Health](https://landscape.io/github/automl/labwatch/master/landscape.svg?style=plastic)](https://landscape.io/github/automl/labwatch/master)
+[![Code Health](https://landscape.io/github/automl/labwatch/master/landscape.svg?style=flat-square)](https://landscape.io/github/automl/labwatch/master)
 <br />
 An extension to Sacred for automated hyperparameter optimization.
 
