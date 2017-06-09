@@ -6,12 +6,13 @@ import numpy as np
 
 
 from ConfigSpace import Configuration
-
-from robo.initial_design.init_random_uniform import init_random_uniform
-from robo.models.bnn import BayesianNeuralNetwork
-from robo.maximizers.direct import Direct
-from robo.acquisition_functions.log_ei import LogEI
-
+try:
+    from robo.initial_design.init_random_uniform import init_random_uniform
+    from robo.models.bnn import BayesianNeuralNetwork
+    from robo.maximizers.direct import Direct
+    from robo.acquisition_functions.log_ei import LogEI
+except:
+    pass
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, configspace_config_to_sacred)

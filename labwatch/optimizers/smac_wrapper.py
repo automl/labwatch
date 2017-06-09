@@ -3,11 +3,12 @@
 from __future__ import division, print_function, unicode_literals
 
 import numpy as np
-
-from smac.scenario.scenario import Scenario
-from smac.tae.execute_ta_run import StatusType
-from smac.facade import smac_facade
-
+try:
+    from smac.scenario.scenario import Scenario
+    from smac.tae.execute_ta_run import StatusType
+    from smac.facade import smac_facade
+except:
+    pass
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, sacred_config_to_configspace,

@@ -5,14 +5,15 @@ from __future__ import division, print_function, unicode_literals
 import numpy as np
 
 from ConfigSpace import Configuration
-
-from robo.initial_design.init_random_uniform import init_random_uniform
-from robo.acquisition.log_ei import LogEI
-from robo.acquisition.integrated_acquisition import IntegratedAcquisition
-from robo.maximizers.direct import Direct
-from robo.priors.dngo_priors import DNGOPrior
-from robo.models.dngo import DNGO
-
+try:
+    from robo.initial_design.init_random_uniform import init_random_uniform
+    from robo.acquisition.log_ei import LogEI
+    from robo.acquisition.integrated_acquisition import IntegratedAcquisition
+    from robo.maximizers.direct import Direct
+    from robo.priors.dngo_priors import DNGOPrior
+    from robo.models.dngo import DNGO
+except:
+    pass
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, sacred_config_to_configspace,

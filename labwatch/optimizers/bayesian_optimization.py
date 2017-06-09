@@ -3,17 +3,17 @@
 from __future__ import division, print_function, unicode_literals
 
 import numpy as np
-import george
-
 from ConfigSpace import Configuration
-
-from robo.priors.default_priors import DefaultPrior
-from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
-from robo.maximizers.direct import Direct
-from robo.acquisition_functions.log_ei import LogEI
-from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
-from robo.initial_design.init_random_uniform import init_random_uniform
-
+try:
+    import george
+    from robo.priors.default_priors import DefaultPrior
+    from robo.models.gaussian_process_mcmc import GaussianProcessMCMC
+    from robo.maximizers.direct import Direct
+    from robo.acquisition_functions.log_ei import LogEI
+    from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
+    from robo.initial_design.init_random_uniform import init_random_uniform
+except:
+    pass
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import sacred_space_to_configspace, configspace_config_to_sacred
 from labwatch.utils.types import SearchSpaceNotSupported
