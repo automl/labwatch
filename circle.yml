@@ -1,4 +1,6 @@
 machine:
+  python:
+    version: 3.5.3
   environment:
     # The github organization or username of the repository which hosts the
     # project and documentation.
@@ -19,9 +21,9 @@ dependencies:
   pre:
     - sudo apt-get update
     - sudo apt-get install python-dev
-    - sudo apt-get install python-sphinx
-    - sudo pip install sphinx_bootstrap_theme
-    - sudo pip install .
+    - pip install Sphinx
+    - pip install sphinx_bootstrap_theme
+    - pip install .
   override:
     - echo "Sphinx installed"
 test:
