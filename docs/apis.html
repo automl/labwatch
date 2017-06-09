@@ -85,7 +85,14 @@
   <ul class="dropdown-menu localtoc"
       role="menu"
       aria-labelledby="dLabelLocalToc"><ul>
-<li><a class="reference internal" href="#">API</a></li>
+<li><a class="reference internal" href="#">API</a><ul>
+<li><a class="reference internal" href="#main-modules">Main Modules</a><ul>
+<li><a class="reference internal" href="#module-labwatch.converters.convert_to_configspace">Converters:</a></li>
+<li><a class="reference internal" href="#optimizers">Optimizers:</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </ul>
 </li>
@@ -123,7 +130,14 @@
   <div class="row">
       <div class="col-md-3">
         <div id="sidebar" class="bs-sidenav" role="complementary"><ul>
-<li><a class="reference internal" href="#">API</a></li>
+<li><a class="reference internal" href="#">API</a><ul>
+<li><a class="reference internal" href="#main-modules">Main Modules</a><ul>
+<li><a class="reference internal" href="#module-labwatch.converters.convert_to_configspace">Converters:</a></li>
+<li><a class="reference internal" href="#optimizers">Optimizers:</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -132,6 +146,122 @@
       
   <div class="section" id="api">
 <h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="main-modules">
+<h2>Main Modules<a class="headerlink" href="#main-modules" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-labwatch.converters.convert_to_configspace">
+<span id="converters"></span><h3>Converters:<a class="headerlink" href="#module-labwatch.converters.convert_to_configspace" title="Permalink to this headline">¶</a></h3>
+<dl class="function">
+<dt id="labwatch.converters.convert_to_configspace.configspace_config_to_sacred">
+<code class="descclassname">labwatch.converters.convert_to_configspace.</code><code class="descname">configspace_config_to_sacred</code><span class="sig-paren">(</span><em>config</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.converters.convert_to_configspace.configspace_config_to_sacred" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a Configuration into a dict mapping parameter names to values.</p>
+<p>config: ConfigSpace.Configuration</p>
+<dl class="docutils">
+<dt>dict:</dt>
+<dd>Dictionary mapping parameter names to values.</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="labwatch.converters.convert_to_configspace.convert_simple_param">
+<code class="descclassname">labwatch.converters.convert_to_configspace.</code><code class="descname">convert_simple_param</code><span class="sig-paren">(</span><em>name</em>, <em>param</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.converters.convert_to_configspace.convert_simple_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a simple labwatch parameter to a ConfigSpace parameter.</p>
+<dl class="docutils">
+<dt>name: str</dt>
+<dd>The name of the parameter.</dd>
+<dt>param: dict</dt>
+<dd>Dictionary describing the parameter.</dd>
+</dl>
+<dl class="docutils">
+<dt>ConfigSpace.hyperparameters.Hyperparameter:</dt>
+<dd>The converted hyperparameter.</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="labwatch.converters.convert_to_configspace.sacred_config_to_configspace">
+<code class="descclassname">labwatch.converters.convert_to_configspace.</code><code class="descname">sacred_config_to_configspace</code><span class="sig-paren">(</span><em>cspace</em>, <em>config</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.converters.convert_to_configspace.sacred_config_to_configspace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fill a ConfigurationSpace with the given values and return the resulting
+Configuration.</p>
+<dl class="docutils">
+<dt>cspace: ConfigSpace.ConfigurationSpace</dt>
+<dd>The configuration space to be populated.</dd>
+<dt>config: dict</dt>
+<dd>The configuration values as a dictionary mapping names to values.</dd>
+</dl>
+<dl class="docutils">
+<dt>ConfigSpace.Configuration:</dt>
+<dd>The resulting Configuration.</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="labwatch.converters.convert_to_configspace.sacred_space_to_configspace">
+<code class="descclassname">labwatch.converters.convert_to_configspace.</code><code class="descname">sacred_space_to_configspace</code><span class="sig-paren">(</span><em>space</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.converters.convert_to_configspace.sacred_space_to_configspace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a Labwatch searchspace to a ConfigSpace.</p>
+<dl class="docutils">
+<dt>space: labwatch.searchspace.SearchSpace</dt>
+<dd>A labwatch searchspace to be converted.</dd>
+</dl>
+<dl class="docutils">
+<dt>ConfigSpace.ConfigurationSpace:</dt>
+<dd>A ConfigurationSpace equivalent to the given SeachSpace.</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="optimizers">
+<h3>Optimizers:<a class="headerlink" href="#optimizers" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="labwatch.optimizers.base.Optimizer">
+<em class="property">class </em><code class="descclassname">labwatch.optimizers.base.</code><code class="descname">Optimizer</code><span class="sig-paren">(</span><em>config_space</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.base.Optimizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines the interface for all optimizers.</p>
+<dl class="method">
+<dt id="labwatch.optimizers.base.Optimizer.needs_updates">
+<code class="descname">needs_updates</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.base.Optimizer.needs_updates" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>bool:</dt>
+<dd>True if this optimizer needs updates, False otherwise.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="labwatch.optimizers.base.Optimizer.suggest_configuration">
+<code class="descname">suggest_configuration</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.base.Optimizer.suggest_configuration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Suggests a configuration of hyperparameters to be run.</p>
+<dl class="docutils">
+<dt>dict:</dt>
+<dd><p class="first">Dictionary mapping parameter names to suggested values.</p>
+<p class="last">The default is to return nothing this is done such that the
+user / the watcher can then check the queue or try something else.
+If you want get_random_config as default create an instance of
+RandomSearch instead.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="labwatch.optimizers.base.Optimizer.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>configs</em>, <em>costs</em>, <em>runs</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.base.Optimizer.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the internal state of the optimizer with a list of new results.</p>
+<dl class="docutils">
+<dt>configs: list[dict]</dt>
+<dd>List of configurations mapping parameter names to values.</dd>
+<dt>costs: list[float]</dt>
+<dd>List of costs associated to each config.</dd>
+<dt>runs: list[dict]</dt>
+<dd>List of dictionaries containing additional run information.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="labwatch.optimizers.random_search.RandomSearch">
+<em class="property">class </em><code class="descclassname">labwatch.optimizers.random_search.</code><code class="descname">RandomSearch</code><span class="sig-paren">(</span><em>config_space</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.random_search.RandomSearch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
 </div>
 
 
