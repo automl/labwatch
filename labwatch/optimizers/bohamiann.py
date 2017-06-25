@@ -12,7 +12,8 @@ try:
     from robo.maximizers.direct import Direct
     from robo.acquisition_functions.log_ei import LogEI
 except:
-    pass
+    print("If you want to use Bohamiann you have to install the following dependencies:\n"
+                     "RoBO (https://github.com/automl/RoBO)")
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, configspace_config_to_sacred)

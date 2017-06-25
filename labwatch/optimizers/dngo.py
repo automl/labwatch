@@ -13,7 +13,8 @@ try:
     from robo.priors.dngo_priors import DNGOPrior
     from robo.models.dngo import DNGO
 except:
-    pass
+    print("If you want to use DNGOWrapper you have to install the following dependencies:\n"
+                     "RoBO (https://github.com/automl/RoBO)")
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, sacred_config_to_configspace,

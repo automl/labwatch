@@ -12,8 +12,10 @@ try:
     from robo.acquisition_functions.log_ei import LogEI
     from robo.acquisition_functions.marginalization import MarginalizationGPMCMC
     from robo.initial_design.init_random_uniform import init_random_uniform
-except:
-    pass
+except ImportError as e:
+    print("If you want to use BayesianOptimization you have to install the following dependencies:\n"
+                     "https://github.com/automl/RoBO\n"
+                     "george")
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import sacred_space_to_configspace, configspace_config_to_sacred
 from labwatch.utils.types import SearchSpaceNotSupported

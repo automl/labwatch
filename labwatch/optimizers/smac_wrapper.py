@@ -8,7 +8,8 @@ try:
     from smac.tae.execute_ta_run import StatusType
     from smac.facade import smac_facade
 except:
-    pass
+    print("If you want to use LabwatchScenario you have to install the following dependencies:\n"
+                     "SMAC (https://github.com/automl/SMAC3)")
 from labwatch.optimizers.base import Optimizer
 from labwatch.converters.convert_to_configspace import (
     sacred_space_to_configspace, sacred_config_to_configspace,
