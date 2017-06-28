@@ -87,6 +87,8 @@
       aria-labelledby="dLabelLocalToc"><ul>
 <li><a class="reference internal" href="#">API</a><ul>
 <li><a class="reference internal" href="#main-modules">Main Modules</a><ul>
+<li><a class="reference internal" href="#assistant">Assistant:</a></li>
+<li><a class="reference internal" href="#module-labwatch.hyperparameters">Hyperparameters:</a></li>
 <li><a class="reference internal" href="#module-labwatch.converters.convert_to_configspace">Converters:</a></li>
 <li><a class="reference internal" href="#optimizers">Optimizers:</a></li>
 </ul>
@@ -132,6 +134,8 @@
         <div id="sidebar" class="bs-sidenav" role="complementary"><ul>
 <li><a class="reference internal" href="#">API</a><ul>
 <li><a class="reference internal" href="#main-modules">Main Modules</a><ul>
+<li><a class="reference internal" href="#assistant">Assistant:</a></li>
+<li><a class="reference internal" href="#module-labwatch.hyperparameters">Hyperparameters:</a></li>
 <li><a class="reference internal" href="#module-labwatch.converters.convert_to_configspace">Converters:</a></li>
 <li><a class="reference internal" href="#optimizers">Optimizers:</a></li>
 </ul>
@@ -148,6 +152,85 @@
 <h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="main-modules">
 <h2>Main Modules<a class="headerlink" href="#main-modules" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="assistant">
+<h3>Assistant:<a class="headerlink" href="#assistant" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="labwatch.assistant.LabAssistant">
+<em class="property">class </em><code class="descclassname">labwatch.assistant.</code><code class="descname">LabAssistant</code><span class="sig-paren">(</span><em>experiment</em>, <em>database_name=None</em>, <em>url=’localhost’</em>, <em>optimizer=None</em>, <em>prefix=’runs’</em>, <em>always_inject_observer=False</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.assistant.LabAssistant" title="Permalink to this definition">¶</a></dt>
+<dd><p>The main class for Labwatch. It runs an experiment with a configuration suggested by
+and hyperparameter optimizer.</p>
+<p>The hyperparameter optimizer uses the information about the experiment that are stored in the
+database to suggest a new configuration.</p>
+<dl class="method">
+<dt id="labwatch.assistant.LabAssistant.search_space">
+<code class="descname">search_space</code><span class="sig-paren">(</span><em>function</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.assistant.LabAssistant.search_space" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator for creating a searchspace definition from a function.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-labwatch.hyperparameters">
+<span id="hyperparameters"></span><h3>Hyperparameters:<a class="headerlink" href="#module-labwatch.hyperparameters" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="labwatch.hyperparameters.Gaussian">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Gaussian</code><span class="sig-paren">(</span><em>mu</em>, <em>sigma</em>, <em>log_scale=False</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.Gaussian" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Gaussian just has a different distribution</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="labwatch.hyperparameters.decode_param_or_op">
+<code class="descclassname">labwatch.hyperparameters.</code><code class="descname">decode_param_or_op</code><span class="sig-paren">(</span><em>storage</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.decode_param_or_op" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decode method for converting BSON like dicts to parameter values.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.Parameter">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Parameter</code><span class="sig-paren">(</span><em>uid=None</em>, <em>fixed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.Parameter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.Constant">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Constant</code><span class="sig-paren">(</span><em>value</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.Constant" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.Categorical">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Categorical</code><span class="sig-paren">(</span><em>choices_in</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.Categorical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.UniformNumber">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">UniformNumber</code><span class="sig-paren">(</span><em>lower</em>, <em>upper</em>, <em>type</em>, <em>default=None</em>, <em>log_scale=False</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.UniformNumber" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.UniformFloat">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">UniformFloat</code><span class="sig-paren">(</span><em>lower</em>, <em>upper</em>, <em>default=None</em>, <em>log_scale=False</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.UniformFloat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.UniformInt">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">UniformInt</code><span class="sig-paren">(</span><em>lower</em>, <em>upper</em>, <em>default=None</em>, <em>log_scale=False</em>, <em>uid=None</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.UniformInt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Gaussian</code><span class="sig-paren">(</span><em>mu</em>, <em>sigma</em>, <em>log_scale=False</em>, <em>uid=None</em><span class="sig-paren">)</span></dt>
+<dd><p>A Gaussian just has a different distribution</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.ConditionResult">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">ConditionResult</code><span class="sig-paren">(</span><em>result</em>, <em>condition</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.ConditionResult" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.hyperparameters.Condition">
+<em class="property">class </em><code class="descclassname">labwatch.hyperparameters.</code><code class="descname">Condition</code><span class="sig-paren">(</span><em>param</em>, <em>choices</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.hyperparameters.Condition" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
 <div class="section" id="module-labwatch.converters.convert_to_configspace">
 <span id="converters"></span><h3>Converters:<a class="headerlink" href="#module-labwatch.converters.convert_to_configspace" title="Permalink to this headline">¶</a></h3>
 <dl class="function">
@@ -254,6 +337,21 @@ RandomSearch instead.</p>
 </dd></dl>
 
 </dd></dl>
+
+<dl class="class">
+<dt id="labwatch.optimizers.bayesian_optimization.BayesianOptimization">
+<em class="property">class </em><code class="descclassname">labwatch.optimizers.bayesian_optimization.</code><code class="descname">BayesianOptimization</code><span class="sig-paren">(</span><em>config_space</em>, <em>burnin=100</em>, <em>chain_length=200</em>, <em>n_hypers=20</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.bayesian_optimization.BayesianOptimization" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.optimizers.bohamiann.Bohamiann">
+<em class="property">class </em><code class="descclassname">labwatch.optimizers.bohamiann.</code><code class="descname">Bohamiann</code><span class="sig-paren">(</span><em>config_space</em>, <em>burnin=3000</em>, <em>n_iters=10000</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.bohamiann.Bohamiann" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="labwatch.optimizers.dngo.DNGOWrapper">
+<em class="property">class </em><code class="descclassname">labwatch.optimizers.dngo.</code><code class="descname">DNGOWrapper</code><span class="sig-paren">(</span><em>config_space</em>, <em>burnin=1000</em>, <em>chain_length=200</em>, <em>n_hypers=20</em><span class="sig-paren">)</span><a class="headerlink" href="#labwatch.optimizers.dngo.DNGOWrapper" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="class">
 <dt id="labwatch.optimizers.random_search.RandomSearch">
