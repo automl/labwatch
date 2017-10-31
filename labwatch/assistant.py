@@ -22,9 +22,6 @@ from labwatch.searchspace import SearchSpace, build_search_space, fill_in_values
 from labwatch.utils.version_checks import (check_dependencies, check_sources,
                                            check_names)
 
-if not opt.has_pymongo:
-    raise RuntimeError("pymongo not found but needed by LabAssistant")
-
 # SON Manipulators for saving and retrieving search spaces
 SON_MANIPULATORS = []
 
@@ -52,6 +49,7 @@ class SearchSpaceManipulator(pymongo.son_manipulator.SONManipulator):
                     else:  # Again, make sure to recurse into sub-docs
                         son[key] = self.transform_outgoing(value, collection)
         return son
+
 
 SON_MANIPULATORS.append(SearchSpaceManipulator())
 
