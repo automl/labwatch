@@ -9,7 +9,7 @@ import numpy as np
 
 
 ex = Experiment()
-a = LabAssistant(ex)
+a = LabAssistant(ex, database_name='branin')
 
 
 @ex.config
