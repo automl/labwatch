@@ -2,6 +2,7 @@
 # coding=utf-8
 from __future__ import division, print_function, unicode_literals
 
+from labwatch.optimizers.random_search import RandomSearch
 from sacred import Experiment
 from labwatch.assistant import LabAssistant
 from labwatch.hyperparameters import UniformFloat
@@ -9,7 +10,7 @@ import numpy as np
 
 
 ex = Experiment()
-a = LabAssistant(ex, database_name='branin')
+a = LabAssistant(ex, database_name='branin', optimizer=RandomSearch)
 
 
 @ex.config
