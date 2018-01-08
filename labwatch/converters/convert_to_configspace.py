@@ -47,18 +47,18 @@ def convert_simple_param(name, param):
                 basic_choices.append(choice)        
         return csh.CategoricalHyperparameter(name=name,
                                              choices=basic_choices,
-                                             default=basic_choices[0])
+                                             default_value=basic_choices[0])
     elif param["_class"] == 'UniformFloat':
         return csh.UniformFloatHyperparameter(name=name,
                                               lower=param["lower"],
                                               upper=param["upper"],
-                                              default=param["default"],
+                                              default_value=param["default"],
                                               log=param["log_scale"])
     elif param["_class"] == 'UniformInt':
         return csh.UniformIntegerHyperparameter(name=name,
                                                 lower=param["lower"],
                                                 upper=param["upper"],
-                                                default=param["default"],
+                                                default_value=param["default"],
                                                 log=param["log_scale"])
     elif param["_class"] == 'UniformNumber':
         ptype = str_to_types[param["type"]]
@@ -66,13 +66,13 @@ def convert_simple_param(name, param):
             return csh.UniformFloatHyperparameter(name=name,
                                                   lower=param["lower"],
                                                   upper=param["upper"],
-                                                  default=param["default"],
+                                                  default_value=param["default"],
                                                   log=param["log_scale"])
         elif ptype == int:
             return csh.UniformIntegerHyperparameter(name=name,
                                                     lower=param["lower"],
                                                     upper=param["upper"],
-                                                    default=param["default"],
+                                                    default_value=param["default"],
                                                     log=param["log_scale"])
         else:
             raise ValueError("Don't know how to represent UniformNumber with "
