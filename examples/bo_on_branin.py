@@ -1,6 +1,6 @@
-from branin import a
+from branin import ex
 
 print("RUNNING sampled configs")
 num_configs = 100
 for i in range(num_configs):
-    a.run_suggestion(command="branin")
+    ex.run(named_configs=['search_space'])
